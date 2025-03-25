@@ -1,18 +1,18 @@
 {
   "functions": {
-    "api/script/outline": {
+    "/api/script/outline": {
       "maxDuration": 60
     },
-    "api/script/generate": {
+    "/api/script/generate": {
       "maxDuration": 60
     },
-    "api/research/generate": {
+    "/api/research/generate": {
       "maxDuration": 60
     },
-    "api/voice/generate": {
+    "/api/voice/generate": {
       "maxDuration": 60
     },
-    "api/content/enhance": {
+    "/api/content/enhance": {
       "maxDuration": 60
     }
   }
