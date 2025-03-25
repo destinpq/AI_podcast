@@ -1,0 +1,19 @@
+{
+  "functions": {
+    "api/script/outline": {
+      "maxDuration": 60
+    },
+    "api/script/generate": {
+      "maxDuration": 60
+    },
+    "api/research/generate": {
+      "maxDuration": 60
+    },
+    "api/voice/generate": {
+      "maxDuration": 60
+    },
+    "api/content/enhance": {
+      "maxDuration": 60
+    }
+  }
+} 

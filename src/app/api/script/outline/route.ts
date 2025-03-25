@@ -19,7 +19,8 @@ interface RequestBody {
 }
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPENAI_API_KEY,
+  timeout: 30000, // 30 second timeout for OpenAI requests
 });
 
 export async function POST(request: Request) {
@@ -39,14 +40,14 @@ export async function POST(request: Request) {
     const wordsPerSection = Math.floor((targetDuration * 150) / sections); // 150 words per minute
 
     // Create a more focused prompt
-    const prompt = `Create a detailed podcast outline for a ${targetDuration}-minute episode about "${topic}".
-Include ${sections} main sections, each with 2-3 key points.
-Each section should be approximately ${wordsPerSection} words.
+    const prompt = `Create a podcast outline for a ${targetDuration}-minute episode about "${topic}".
+Include ${sections} sections with 2-3 points each.
+Target ${wordsPerSection} words per section.
 
-${trendsData ? `Consider these trending topics:
+${trendsData ? `Consider these trends:
 ${JSON.stringify(trendsData, null, 2)}` : ''}
 
-Format the response as a JSON object with this structure:
+Format as JSON:
 {
   "title": "Episode Title",
   "sections": [
@@ -71,7 +72,7 @@ Format the response as a JSON object with this structure:
       ],
       response_format: { type: "json_object" },
       temperature: 0.7,
-      max_tokens: 1000, // Limit response size
+      max_tokens: 800, // Reduced token limit
     });
 
     const response = JSON.parse(completion.choices[0].message.content || '{}');
