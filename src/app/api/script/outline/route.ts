@@ -24,91 +24,61 @@ const openai = new OpenAI({
 
 export async function POST(request: Request) {
   try {
-    const { topic, trendsData, duration }: RequestBody = await request.json();
+    const { topic, trendsData, duration } = await request.json();
 
     if (!topic) {
-      return NextResponse.json({ error: 'Topic is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Topic is required' },
+        { status: 400 }
+      );
     }
 
     // Calculate optimal content structure based on duration
-    const sectionsCount = duration <= 15 ? 3 : duration <= 30 ? 4 : 5;
-    const pointsPerSection = duration <= 15 ? 2 : duration <= 30 ? 3 : 4;
-    const timePerPoint = Math.floor(duration / (sectionsCount * pointsPerSection));
+    const targetDuration = duration || 30; // Default to 30 minutes if not specified
+    const sections = Math.max(3, Math.min(6, Math.floor(targetDuration / 5))); // 3-6 sections, 5 minutes each
+    const wordsPerSection = Math.floor((targetDuration * 150) / sections); // 150 words per minute
 
-    // Create a prompt that incorporates trending content and duration
-    let prompt = `Create a detailed podcast outline for a ${duration}-minute episode about "${topic}". 
+    // Create a more focused prompt
+    const prompt = `Create a detailed podcast outline for a ${targetDuration}-minute episode about "${topic}".
+Include ${sections} main sections, each with 2-3 key points.
+Each section should be approximately ${wordsPerSection} words.
 
-Content Structure Guidelines:
-- The outline should be perfectly timed for a ${duration}-minute podcast
-- Include ${sectionsCount} main sections
-- Each section should have ${pointsPerSection} key points
-- Allocate roughly ${timePerPoint} minutes per discussion point
-- Include time for intro (1-2 min) and outro (1-2 min)
-- Factor in transition time between sections (30 sec each)`;
+${trendsData ? `Consider these trending topics:
+${JSON.stringify(trendsData, null, 2)}` : ''}
 
-    if (trendsData) {
-      prompt += "\n\nIncorporate insights from these recent sources:";
-      
-      if (trendsData.news?.length > 0) {
-        prompt += "\nNews articles:";
-        trendsData.news.forEach((item: TrendingContent) => {
-          prompt += `\n- ${item.title} (from ${item.source})`;
-        });
-      }
-
-      if (trendsData.discussions?.length > 0) {
-        prompt += "\nOnline discussions:";
-        trendsData.discussions.forEach((item: TrendingContent) => {
-          prompt += `\n- ${item.title} (${item.source}, ${item.score || 0} engagement)`;
-        });
-      }
-    }
-
-    prompt += `\n\nCreate an outline following this structure:
-1. A catchy, SEO-friendly title for the podcast episode
-2. ${sectionsCount} main sections, each with:
-   - An engaging section heading
-   - ${pointsPerSection} key points to discuss
-   - Estimated time allocation for each point
-   
 Format the response as a JSON object with this structure:
 {
   "title": "Episode Title",
   "sections": [
     {
-      "title": "Section Heading",
-      "points": ["Point 1 (X min)", "Point 2 (Y min)", "Point 3 (Z min)"]
+      "title": "Section Title",
+      "points": ["Point 1", "Point 2", "Point 3"]
     }
   ]
-}
-
-Ensure the total time allocation matches the ${duration}-minute target.`;
+}`;
 
     const completion = await openai.chat.completions.create({
+      model: "gpt-4-turbo-preview",
       messages: [
         {
           role: "system",
-          content: `You are an expert podcast outline creator that generates well-structured, time-optimized outlines. You understand pacing, timing, and how to structure content for ${duration}-minute episodes.`
+          content: "You are a podcast script writer. Create engaging, well-structured outlines that maintain listener interest."
         },
         {
           role: "user",
           content: prompt
         }
       ],
-      model: "gpt-4-turbo-preview",
       response_format: { type: "json_object" },
       temperature: 0.7,
+      max_tokens: 1000, // Limit response size
     });
 
-    const outlineResponse = completion.choices[0].message.content;
-    if (!outlineResponse) {
-      throw new Error('Failed to generate outline');
-    }
+    const response = JSON.parse(completion.choices[0].message.content || '{}');
 
-    const outline = JSON.parse(outlineResponse);
-    return NextResponse.json(outline);
+    return NextResponse.json(response);
   } catch (error) {
-    console.error('Outline Generation Error:', error);
+    console.error('Error generating outline:', error);
     return NextResponse.json(
       { error: 'Failed to generate outline' },
       { status: 500 }
