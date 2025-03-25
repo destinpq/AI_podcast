@@ -24,7 +24,7 @@ const openai = new OpenAI({
 
 export async function POST(request: Request) {
   try {
-    const { topic, trendsData, duration } = await request.json();
+    const { topic, trendsData, duration }: RequestBody = await request.json();
 
     if (!topic) {
       return NextResponse.json(
