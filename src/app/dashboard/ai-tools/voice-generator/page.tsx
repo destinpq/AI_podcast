@@ -1,163 +1,184 @@
-import React from 'react';
+"use client";
+
+import { useState } from 'react';
 import {
   Box,
   Typography,
   TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
   Button,
   Paper,
   Grid,
-  Chip,
-  Stack
+  Stack,
+  LinearProgress,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
-  AutoAwesome as AutoAwesomeIcon,
-  PlayArrow as PlayArrowIcon,
-  Download as DownloadIcon,
-  Save as SaveIcon
+  RecordVoiceOver as RecordVoiceOverIcon,
 } from '@mui/icons-material';
 
+interface VoiceSettings {
+  pitch: number;
+  speed: number;
+  volume: number;
+}
+
 export default function VoiceGenerator() {
+  const [text, setText] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [settings, setSettings] = useState<VoiceSettings>({
+    pitch: 1,
+    speed: 1,
+    volume: 1,
+  });
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  const handleGenerateVoice = async () => {
+    setIsLoading(true);
+    setProgress(0);
+    setAudioUrl(null);
+
+    try {
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 500);
+
+      // Make API call to generate voice
+      const response = await fetch('/api/voice/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text, settings }),
+      });
+
+      clearInterval(progressInterval);
+      setProgress(100);
+
+      if (!response.ok) {
+        throw new Error('Failed to generate voice');
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      setAudioUrl(url);
+    } catch (error) {
+      console.error('Error generating voice:', error);
+    } finally {
+      setIsLoading(false);
+      setProgress(0);
+    }
+  };
+
+  const handleSettingChange = (setting: keyof VoiceSettings, value: number) => {
+    setSettings((prev) => ({
+      ...prev,
+      [setting]: value,
+    }));
+  };
+
   return (
     <Box sx={{ flexGrow: 1 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, flexDirection: isMobile ? 'column' : 'row', gap: 2 }}>
         <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
           Voice Generator
         </Typography>
-        <Chip
-          icon={<AutoAwesomeIcon />}
-          label="AI Credits: 1000 remaining"
+        <Button
+          variant="contained"
           color="primary"
-          variant="outlined"
-        />
+          startIcon={<RecordVoiceOverIcon />}
+          onClick={handleGenerateVoice}
+          disabled={isLoading || !text}
+          fullWidth={isMobile}
+        >
+          Generate Voice
+        </Button>
       </Box>
 
       <Grid container spacing={3}>
-        <Grid item xs={12} md={8}>
+        <Grid item xs={12}>
           <Paper sx={{ p: 3 }}>
-            <Box component="form" sx={{ '& > :not(style)': { mb: 3 } }}>
-              <TextField
-                fullWidth
-                multiline
-                rows={6}
-                label="Text to Convert"
-                placeholder="Enter the text you want to convert to speech..."
-                variant="outlined"
-              />
-
-              <FormControl fullWidth>
-                <InputLabel>Voice Selection</InputLabel>
-                <Select
-                  label="Voice Selection"
-                  defaultValue="male-1"
-                >
-                  <MenuItem value="male-1">Male Voice 1</MenuItem>
-                  <MenuItem value="male-2">Male Voice 2</MenuItem>
-                  <MenuItem value="female-1">Female Voice 1</MenuItem>
-                  <MenuItem value="female-2">Female Voice 2</MenuItem>
-                  <MenuItem value="neutral-1">Neutral Voice 1</MenuItem>
-                </Select>
-              </FormControl>
-
-              <FormControl fullWidth>
-                <InputLabel>Speaking Speed</InputLabel>
-                <Select
-                  label="Speaking Speed"
-                  defaultValue="normal"
-                >
-                  <MenuItem value="slow">Slow</MenuItem>
-                  <MenuItem value="normal">Normal</MenuItem>
-                  <MenuItem value="fast">Fast</MenuItem>
-                </Select>
-              </FormControl>
-
-              <FormControl fullWidth>
-                <InputLabel>Pitch</InputLabel>
-                <Select
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={4}
+                  label="Text to Convert"
+                  placeholder="Enter text to convert to speech..."
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  disabled={isLoading}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  type="number"
                   label="Pitch"
-                  defaultValue="medium"
-                >
-                  <MenuItem value="low">Low</MenuItem>
-                  <MenuItem value="medium">Medium</MenuItem>
-                  <MenuItem value="high">High</MenuItem>
-                </Select>
-              </FormControl>
-
-              <FormControl fullWidth>
-                <InputLabel>Emotion</InputLabel>
-                <Select
-                  label="Emotion"
-                  defaultValue="neutral"
-                >
-                  <MenuItem value="neutral">Neutral</MenuItem>
-                  <MenuItem value="happy">Happy</MenuItem>
-                  <MenuItem value="sad">Sad</MenuItem>
-                  <MenuItem value="excited">Excited</MenuItem>
-                  <MenuItem value="professional">Professional</MenuItem>
-                </Select>
-              </FormControl>
-
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-                <Button
-                  variant="outlined"
-                  startIcon={<PlayArrowIcon />}
-                >
-                  Preview
-                </Button>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  startIcon={<AutoAwesomeIcon />}
-                >
-                  Generate Voice
-                </Button>
-              </Box>
-            </Box>
+                  value={settings.pitch}
+                  onChange={(e) => handleSettingChange('pitch', parseFloat(e.target.value))}
+                  disabled={isLoading}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Speed"
+                  value={settings.speed}
+                  onChange={(e) => handleSettingChange('speed', parseFloat(e.target.value))}
+                  disabled={isLoading}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Volume"
+                  value={settings.volume}
+                  onChange={(e) => handleSettingChange('volume', parseFloat(e.target.value))}
+                  disabled={isLoading}
+                />
+              </Grid>
+            </Grid>
           </Paper>
         </Grid>
 
-        <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 3, height: '100%' }}>
-            <Typography variant="h6" component="h2" sx={{ mb: 2 }}>
-              Generated Audio
-            </Typography>
-            <Box
-              sx={{
-                p: 3,
-                bgcolor: 'grey.100',
-                borderRadius: 1,
-                mb: 2,
-                minHeight: 200,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <Typography color="text.secondary">
-                Your generated audio will appear here...
-              </Typography>
-            </Box>
-            <Stack direction="row" spacing={2} justifyContent="center">
-              <Button
-                variant="contained"
-                color="success"
-                startIcon={<DownloadIcon />}
-              >
-                Download
-              </Button>
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<SaveIcon />}
-              >
-                Save to Project
-              </Button>
-            </Stack>
-          </Paper>
-        </Grid>
+        {isLoading && (
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3 }}>
+              <Stack spacing={2}>
+                <Typography variant="subtitle1">Generating Voice...</Typography>
+                <LinearProgress variant="determinate" value={progress} />
+                <Typography variant="body2" color="text.secondary">
+                  {progress}% complete
+                </Typography>
+              </Stack>
+            </Paper>
+          </Grid>
+        )}
+
+        {audioUrl && (
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3 }}>
+              <Stack spacing={2}>
+                <Typography variant="h6">Generated Audio</Typography>
+                <audio controls src={audioUrl} style={{ width: '100%' }} />
+              </Stack>
+            </Paper>
+          </Grid>
+        )}
       </Grid>
     </Box>
   );
