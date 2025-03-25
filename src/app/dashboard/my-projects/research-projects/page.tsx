@@ -1,31 +1,30 @@
-import React from 'react';
+"use client";
+
+import { useState } from 'react';
 import Link from 'next/link';
 import {
   Box,
-  Typography,
   Button,
+  Typography,
+  Paper,
+  Grid,
   TextField,
-  Select,
-  MenuItem,
   FormControl,
   InputLabel,
-  Grid,
-  Card,
-  CardContent,
-  CardActions,
-  IconButton,
+  Select,
+  MenuItem,
   Pagination,
-  Stack,
-  Paper
 } from '@mui/material';
-import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Science as ScienceIcon
+import { 
+  Add as AddIcon
 } from '@mui/icons-material';
 
 export default function ResearchProjects() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const totalPages = 1;
+
   return (
     <Box sx={{ flexGrow: 1 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
@@ -33,120 +32,74 @@ export default function ResearchProjects() {
           Research Projects
         </Typography>
         <Button
-          component={Link}
-          href="/dashboard/ai-tools/research-generator"
           variant="contained"
           color="primary"
           startIcon={<AddIcon />}
+          component={Link}
+          href="/dashboard/ai-tools/research"
         >
-          New Research Project
+          New Research
         </Button>
       </Box>
 
-      {/* Project Filters */}
-      <Paper sx={{ p: 2, mb: 4 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth
-              placeholder="Search projects..."
-              variant="outlined"
-              size="small"
-            />
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Status</InputLabel>
-              <Select
-                label="Status"
-                defaultValue="all"
-              >
-                <MenuItem value="all">All Projects</MenuItem>
-                <MenuItem value="active">Active</MenuItem>
-                <MenuItem value="completed">Completed</MenuItem>
-                <MenuItem value="archived">Archived</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Sort By</InputLabel>
-              <Select
-                label="Sort By"
-                defaultValue="newest"
-              >
-                <MenuItem value="newest">Newest First</MenuItem>
-                <MenuItem value="oldest">Oldest First</MenuItem>
-                <MenuItem value="updated">Recently Updated</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-        </Grid>
-      </Paper>
-
-      {/* Projects Grid */}
       <Grid container spacing={3}>
-        {/* Empty State */}
         <Grid item xs={12}>
-          <Paper sx={{ p: 6, textAlign: 'center' }}>
-            <ScienceIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
-            <Typography variant="h6" component="h3" gutterBottom>
-              No Research Projects Yet
-            </Typography>
-            <Typography color="text.secondary" paragraph>
-              Get started by creating your first research project.
-            </Typography>
-            <Button
-              component={Link}
-              href="/dashboard/ai-tools/research-generator"
-              variant="contained"
-              color="primary"
-              startIcon={<AddIcon />}
-            >
-              Create New Project
-            </Button>
+          <Paper sx={{ p: 3 }}>
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Search Projects"
+                  placeholder="Search by title or topic..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Status</InputLabel>
+                  <Select
+                    label="Status"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <MenuItem value="all">All</MenuItem>
+                    <MenuItem value="active">Active</MenuItem>
+                    <MenuItem value="completed">Completed</MenuItem>
+                    <MenuItem value="archived">Archived</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
           </Paper>
         </Grid>
 
-        {/* Project Card Template (commented out until needed) */}
-        {/* <Grid item xs={12} md={6} lg={4}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                <Typography variant="h6" component="h3">
-                  Project Title
-                </Typography>
-                <Chip
-                  label="Active"
-                  color="success"
-                  size="small"
-                />
-              </Box>
-              <Typography color="text.secondary" paragraph>
-                Project description goes here...
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Last updated: 2 days ago
-                </Typography>
-              </Box>
-            </CardContent>
-            <CardActions>
-              <IconButton size="small">
-                <EditIcon />
-              </IconButton>
-              <IconButton size="small" color="error">
-                <DeleteIcon />
-              </IconButton>
-            </CardActions>
-          </Card>
-        </Grid> */}
-      </Grid>
+        <Grid item xs={12}>
+          <Paper sx={{ p: 3 }}>
+            <Grid container spacing={3}>
+              {/* Project cards will go here */}
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                  <Typography color="text.secondary">
+                    No projects found. Start a new research project to get started.
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          </Paper>
+        </Grid>
 
-      {/* Pagination */}
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-        <Pagination count={3} color="primary" />
-      </Box>
+        <Grid item xs={12}>
+          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+            <Pagination
+              count={totalPages}
+              page={page}
+              onChange={(e, value) => setPage(value)}
+              color="primary"
+            />
+          </Box>
+        </Grid>
+      </Grid>
     </Box>
   );
 } 

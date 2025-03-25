@@ -1,6 +1,21 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { Outline, SelectedPoint, TrendsData } from '@/types/script';
+
+interface Outline {
+  title: string;
+  sections: Array<{
+    title: string;
+    points: string[];
+  }>;
+}
+
+interface SelectedPoint {
+  sectionIndex: number;
+  pointIndex: number;
+  text: string;
+  elaboration?: string;
+  promptType?: 'life_experience' | 'joke' | 'analogy' | 'example' | 'statistic' | 'quote';
+}
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -93,10 +108,10 @@ export async function POST(request: Request) {
     }
 
     // Generate each section in parallel
-    const scriptPartPromises = outline.sections.map((section, index) => 
+    const scriptPartPromises = outline.sections.map((section: Outline['sections'][0], index: number) => 
       generateScriptPart(
         section,
-        selectedPoints.filter(p => p.sectionIndex === index),
+        selectedPoints.filter((p: SelectedPoint) => p.sectionIndex === index),
         duration,
         memberCount,
         index,

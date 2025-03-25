@@ -1,16 +1,42 @@
 import { NextResponse } from 'next/server';
-import { google } from 'googleapis';
+import googleTrends from 'google-trends-api';
 
-const googleTrends = google.trends('v1');
+export interface TrendingContent {
+  title: string;
+  traffic: string;
+  link: string;
+  source: string;
+  publishedAt: string;
+}
 
-interface TrendingSearch {
-  title?: {
-    query: string;
+export interface TrendsData {
+  news: TrendingContent[];
+  discussions: TrendingContent[];
+}
+
+interface StorySummary {
+  articleTitle: string;
+  traffic?: string;
+  url: string;
+  source: string;
+  publishedAt: string;
+}
+
+interface RelatedQuery {
+  query: string;
+  value?: string;
+}
+
+interface GoogleTrendsResponse {
+  storySummaries?: StorySummary[];
+}
+
+interface RelatedQueriesResponse {
+  related_queries?: {
+    [key: string]: {
+      top?: RelatedQuery[];
+    };
   };
-  formattedTraffic?: string;
-  articles?: Array<{
-    title: string;
-  }>;
 }
 
 export async function POST(request: Request) {
@@ -25,26 +51,53 @@ export async function POST(request: Request) {
     }
 
     // Get real-time trends data
-    const trendsResponse = await googleTrends.realtimeTrends({
+    const trendsData = await googleTrends.realTimeTrends({
       geo: 'US',
       hl: 'en-US',
+      keyword: topic
     });
 
     // Get related queries
-    const relatedQueriesResponse = await googleTrends.relatedQueries({
+    const relatedQueries = await googleTrends.relatedQueries({
       keyword: topic,
       geo: 'US',
-      hl: 'en-US',
+      hl: 'en-US'
     });
 
     // Process and format the data
-    const trends = trendsResponse.data.trendingSearchesDays?.[0]?.trendingSearches?.map((trend: TrendingSearch) => ({
-      title: trend.title?.query || '',
-      traffic: trend.formattedTraffic || '0',
-      articles: trend.articles?.map((article: { title: string }) => article.title) || [],
-    })) || [];
+    const processedData: TrendsData = {
+      news: [],
+      discussions: []
+    };
 
-    return NextResponse.json({ trends });
+    // Parse the trends data and extract relevant information
+    const parsedTrends = JSON.parse(trendsData) as GoogleTrendsResponse;
+    if (parsedTrends.storySummaries) {
+      processedData.news = parsedTrends.storySummaries.map((story: StorySummary) => ({
+        title: story.articleTitle,
+        traffic: story.traffic || 'N/A',
+        link: story.url,
+        source: story.source,
+        publishedAt: story.publishedAt
+      }));
+    }
+
+    // Add related queries to discussions
+    if (relatedQueries) {
+      const parsedQueries = JSON.parse(relatedQueries) as RelatedQueriesResponse;
+      if (parsedQueries.related_queries) {
+        const topQueries = parsedQueries.related_queries[topic]?.top || [];
+        processedData.discussions = topQueries.map((query: RelatedQuery) => ({
+          title: query.query,
+          traffic: query.value || 'N/A',
+          link: `https://www.google.com/search?q=${encodeURIComponent(query.query)}`,
+          source: 'Google Trends',
+          publishedAt: new Date().toISOString()
+        }));
+      }
+    }
+
+    return NextResponse.json(processedData);
   } catch (error) {
     console.error('Error fetching trends:', error);
     return NextResponse.json(

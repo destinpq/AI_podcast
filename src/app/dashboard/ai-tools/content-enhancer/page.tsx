@@ -1,4 +1,6 @@
-import React from 'react';
+"use client";
+
+import { useState } from 'react';
 import {
   Box,
   Typography,
@@ -12,15 +14,20 @@ import {
   Grid,
   Chip,
   Stack,
-  LinearProgress
+  LinearProgress,
 } from '@mui/material';
 import {
   AutoAwesome as AutoAwesomeIcon,
   Search as SearchIcon,
-  TrendingUp as TrendingUpIcon
 } from '@mui/icons-material';
 
 export default function ContentEnhancer() {
+  const [content, setContent] = useState('');
+  const [enhancementType, setEnhancementType] = useState('seo');
+  const [targetLevel, setTargetLevel] = useState('professional');
+  const [tone, setTone] = useState('neutral');
+  const [keywords, setKeywords] = useState('');
+
   return (
     <Box sx={{ flexGrow: 1 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
@@ -46,13 +53,16 @@ export default function ContentEnhancer() {
                 label="Content to Enhance"
                 placeholder="Enter the content you want to enhance..."
                 variant="outlined"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
               />
 
               <FormControl fullWidth>
                 <InputLabel>Enhancement Type</InputLabel>
                 <Select
                   label="Enhancement Type"
-                  defaultValue="seo"
+                  value={enhancementType}
+                  onChange={(e) => setEnhancementType(e.target.value)}
                 >
                   <MenuItem value="seo">SEO Optimization</MenuItem>
                   <MenuItem value="readability">Readability</MenuItem>
@@ -65,7 +75,8 @@ export default function ContentEnhancer() {
                 <InputLabel>Target Level</InputLabel>
                 <Select
                   label="Target Level"
-                  defaultValue="professional"
+                  value={targetLevel}
+                  onChange={(e) => setTargetLevel(e.target.value)}
                 >
                   <MenuItem value="casual">Casual</MenuItem>
                   <MenuItem value="professional">Professional</MenuItem>
@@ -77,7 +88,8 @@ export default function ContentEnhancer() {
                 <InputLabel>Desired Tone</InputLabel>
                 <Select
                   label="Desired Tone"
-                  defaultValue="neutral"
+                  value={tone}
+                  onChange={(e) => setTone(e.target.value)}
                 >
                   <MenuItem value="neutral">Neutral</MenuItem>
                   <MenuItem value="friendly">Friendly</MenuItem>
@@ -92,6 +104,8 @@ export default function ContentEnhancer() {
                 placeholder="Enter keywords separated by commas..."
                 variant="outlined"
                 helperText="Keywords to optimize for (optional)"
+                value={keywords}
+                onChange={(e) => setKeywords(e.target.value)}
               />
 
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>

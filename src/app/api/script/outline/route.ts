@@ -1,10 +1,6 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
-
 interface TrendingContent {
   title: string;
   source: string;
@@ -13,14 +9,22 @@ interface TrendingContent {
   publishedAt?: string;
 }
 
-interface TrendsData {
-  news: TrendingContent[];
-  discussions: TrendingContent[];
+interface RequestBody {
+  topic: string;
+  trendsData?: {
+    news: TrendingContent[];
+    discussions: TrendingContent[];
+  };
+  duration: number;
 }
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 
 export async function POST(request: Request) {
   try {
-    const { topic, trendsData, duration } = await request.json();
+    const { topic, trendsData, duration }: RequestBody = await request.json();
 
     if (!topic) {
       return NextResponse.json({ error: 'Topic is required' }, { status: 400 });
@@ -47,14 +51,14 @@ Content Structure Guidelines:
       
       if (trendsData.news?.length > 0) {
         prompt += "\nNews articles:";
-        trendsData.news.forEach(item => {
+        trendsData.news.forEach((item: TrendingContent) => {
           prompt += `\n- ${item.title} (from ${item.source})`;
         });
       }
 
       if (trendsData.discussions?.length > 0) {
         prompt += "\nOnline discussions:";
-        trendsData.discussions.forEach(item => {
+        trendsData.discussions.forEach((item: TrendingContent) => {
           prompt += `\n- ${item.title} (${item.source}, ${item.score || 0} engagement)`;
         });
       }
