@@ -8,10 +8,10 @@ function generateFallbackScript(
   duration: number,
   memberCount: number,
   userReferences: Array<{
-    id: string;
+  id: string;
     type: string;
-    content: string;
-    source?: string;
+  content: string;
+  source?: string;
   }> = []
 ) {
   // Collect news articles and facts for reference
@@ -190,18 +190,18 @@ export async function POST(request: Request) {
       const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout
       
       // Use a smaller model with smaller max tokens for faster generation
-      const completion = await openai.chat.completions.create({
+  const completion = await openai.chat.completions.create({
         model: "gpt-3.5-turbo", // Use standard model, not 16k version
-        messages: [
-          {
-            role: "system",
+    messages: [
+      {
+        role: "system",
             content: "You are an expert podcast script writer. Create conversational, engaging, and informative podcast scripts. Format appropriately for the specified number of speakers."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
+      },
+      {
+        role: "user",
+        content: prompt
+      }
+    ],
         temperature: 0.7,
         // Use smaller max tokens to ensure faster response
         max_tokens: Math.min(2000, calculateMaxTokens(Math.min(300, targetWordCount.max))),
@@ -221,7 +221,7 @@ export async function POST(request: Request) {
       const fallbackScript = generateFallbackScript(
         outlineTitle,
         sections,
-        duration,
+      duration, 
         memberCount,
         userReferences
       );
@@ -264,8 +264,8 @@ export async function POST(request: Request) {
     }
     
     const fallbackScript = generateFallbackScript(title, sections, duration, memberCount);
-    
-    return NextResponse.json({ 
+
+    return NextResponse.json({
       script: fallbackScript,
       notice: 'Using generated script due to server error'
     }, { status: 200 }); // Return 200 to avoid cascading errors

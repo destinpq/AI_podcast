@@ -68,6 +68,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ScriptTrendsVisualization from '@/components/ScriptTrendsVisualization';
 import SaveScriptButton from '@/components/SaveScriptButton';
 import { useAuth } from '@/providers/AuthProvider';
+import { db } from '@/lib/firebase';
+import { collection, addDoc } from 'firebase/firestore';
+import jsPDF from 'jspdf';
 
 interface SelectedPoint {
   sectionIndex: number;
@@ -170,6 +173,23 @@ interface GenerationStep {
   status: 'pending' | 'active' | 'completed';
   progress: number;
 }
+
+// Function to save script to Firestore
+const saveScriptToFirestore = async (scriptData) => {
+  try {
+    const docRef = await addDoc(collection(db, 'scripts'), scriptData);
+    console.log('Document written with ID: ', docRef.id);
+  } catch (e) {
+    console.error('Error adding document: ', e);
+  }
+};
+
+// Function to save script as PDF
+const saveScriptAsPDF = (scriptContent) => {
+  const doc = new jsPDF();
+  doc.text(scriptContent, 10, 10);
+  doc.save('script.pdf');
+};
 
 export default function ScriptWriter() {
   const theme = useTheme();
@@ -496,7 +516,10 @@ export default function ScriptWriter() {
     );
   };
 
-  // Function to proceed with generation after selecting content
+  // Ensure generateNewsSummaries and generateFacts are defined or imported
+  // If they are defined elsewhere, import them here
+
+  // Correct the order of variable definitions
   const proceedWithScriptGeneration = async () => {
     // Close content selection UI
     setContentSelectionOpen(false);
@@ -653,6 +676,30 @@ export default function ScriptWriter() {
     } finally {
       setLoading(false);
     }
+
+    // Save to Firestore
+    const scriptData = {
+      topic,
+      script,
+      outline: outline ? {
+        intro: outline.sections[0]?.title || 'Introduction',
+        topics: outline.sections.map(s => s.title),
+        conclusion: outline.sections[outline.sections.length - 1]?.title || 'Conclusion'
+      } : { intro: 'Introduction', topics: [topic], conclusion: 'Conclusion' },
+      duration,
+      memberCount,
+      userId: user?.uid,
+      rating: rating || 0,
+      aiRating: aiRating || null,
+      createdAt: new Date().toISOString(),
+      references: userReferences
+    };
+
+    // Save to Firestore
+    await saveScriptToFirestore(scriptData);
+
+    // Save as PDF
+    saveScriptAsPDF(script);
   };
 
   const handlePointSelect = (sectionIndex: number, pointIndex: number, text: string) => {
