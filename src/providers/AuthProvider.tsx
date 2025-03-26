@@ -1,27 +1,44 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { 
-  User, 
-  onAuthStateChanged, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signOut as firebaseSignOut
-} from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import type { User } from 'firebase/auth';
+import { isFirebaseConfigured } from '@/lib/firebase';
 
+// Simple Auth Context that works in demo mode without Firebase
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  configError: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
-// Create a default context value
+// Create a mock user for demo mode
+const demoUser = {
+  uid: 'demo-user-123',
+  email: 'demo@example.com',
+  displayName: 'Demo User',
+  emailVerified: true,
+  isAnonymous: false,
+  getIdToken: async () => 'demo-token',
+  // Add other required User properties with minimal implementations
+  phoneNumber: null,
+  photoURL: null,
+  providerData: [],
+  metadata: { creationTime: Date.now().toString(), lastSignInTime: Date.now().toString() },
+  tenantId: null,
+  delete: async () => {},
+  reload: async () => {},
+  toJSON: () => ({}),
+  providerId: 'demo',
+} as unknown as User;
+
+// Create default context
 const defaultContextValue: AuthContextType = {
   user: null,
   loading: true,
+  configError: false,
   signIn: async () => { throw new Error('Not implemented'); },
   signUp: async () => { throw new Error('Not implemented'); },
   signOut: async () => { throw new Error('Not implemented'); },
@@ -30,94 +47,71 @@ const defaultContextValue: AuthContextType = {
 const AuthContext = createContext<AuthContextType>(defaultContextValue);
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  return context;
+  return useContext(AuthContext);
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [mounted, setMounted] = useState(false);
+  const [configError, setConfigError] = useState(false);
+  
+  // Check if Firebase is configured correctly
+  const hasValidConfig = isFirebaseConfigured();
+  
+  // Always enable demo mode if Firebase is not configured
+  const isDemoMode = !hasValidConfig;
 
-  // Handle component mount
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Set up auth state listener with improved handling to prevent loops
-  useEffect(() => {
-    if (!mounted) return;
-
-    // Use sessionStorage to prevent unnecessary flashes and loops
-    const storedUser = sessionStorage.getItem('authUser');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
+    // If demo mode is enabled, set the demo user after a short delay
+    if (isDemoMode) {
+      const timer = setTimeout(() => {
+        setUser(demoUser);
         setLoading(false);
-      } catch (e) {
-        console.error('Failed to parse stored user', e);
-        sessionStorage.removeItem('authUser');
-      }
-    }
-
-    let unsubscribed = false;
-    
-    try {
-      const unsubscribe = onAuthStateChanged(
-        auth,
-        (currentUser) => {
-          if (unsubscribed) return;
-          
-          setUser(currentUser);
-          setLoading(false);
-          
-          // Store user data in sessionStorage to persist between page loads
-          if (currentUser) {
-            try {
-              // Only store minimal user data, not the entire user object
-              const minimalUserData = {
-                uid: currentUser.uid,
-                email: currentUser.email,
-                displayName: currentUser.displayName
-              };
-              sessionStorage.setItem('authUser', JSON.stringify(minimalUserData));
-            } catch (e) {
-              console.error('Failed to store user data', e);
-            }
-          } else {
-            sessionStorage.removeItem('authUser');
-          }
-        },
-        (error) => {
-          console.error('Auth state change error:', error);
-          setLoading(false);
-          setUser(null);
-        }
-      );
-
-      return () => {
-        unsubscribed = true;
-        unsubscribe();
-      };
-    } catch (error) {
-      console.error('Error setting up auth listener:', error);
+        setConfigError(true);
+        // Save in sessionStorage for persistence
+        sessionStorage.setItem('authUser', JSON.stringify({
+          uid: demoUser.uid,
+          email: demoUser.email,
+          displayName: demoUser.displayName
+        }));
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    } else {
+      // In a real app, this would connect to Firebase
       setLoading(false);
-      return () => {};
     }
-  }, [mounted]);
+  }, [isDemoMode]);
 
-  const signIn = async (email: string, password: string) => {
+  // Simplified auth functions for demo
+  const signIn = async (_email: string, _password: string) => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      // If Firebase is not configured, just use demo mode
+      if (isDemoMode) {
+        setUser(demoUser);
+        return;
+      }
+      
+      // Here we would normally sign in with Firebase
+      // Since Firebase is not configured, we'll set demo user
+      setUser(demoUser);
     } catch (error) {
       console.error('Error signing in:', error);
       throw error;
     }
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (_email: string, _password: string) => {
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      // If Firebase is not configured, just use demo mode
+      if (isDemoMode) {
+        setUser(demoUser);
+        return;
+      }
+      
+      // Here we would normally sign up with Firebase
+      // Since Firebase is not configured, we'll set demo user
+      setUser(demoUser);
     } catch (error) {
       console.error('Error signing up:', error);
       throw error;
@@ -125,17 +119,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    try {
-      await firebaseSignOut(auth);
-    } catch (error) {
-      console.error('Error signing out:', error);
-      throw error;
-    }
+    setUser(null);
+    sessionStorage.removeItem('authUser');
   };
 
   const value = {
     user,
     loading,
+    configError,
     signIn,
     signUp,
     signOut

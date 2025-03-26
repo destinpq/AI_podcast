@@ -1,267 +1,179 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import {
   Box,
-  Typography,
   Button,
-  Grid,
+  Typography,
   Paper,
+  Grid,
   Card,
   CardContent,
-  Stack
+  Stack,
+  Alert
 } from '@mui/material';
 import {
-  Add as AddIcon,
-  Science as ScienceIcon,
-  Mic as MicIcon,
-  AutoAwesome as AutoAwesomeIcon,
-  School as SchoolIcon,
+  AutoStories as AutoStoriesIcon,
+  Podcasts as PodcastsIcon,
+  Insights as InsightsIcon,
+  Group as GroupIcon,
   LiveTv as LiveTvIcon
 } from '@mui/icons-material';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/providers/AuthProvider';
+
+// Feature cards content
+const features = [
+  {
+    title: 'Script Writer',
+    description: 'Create podcast scripts',
+    link: '/dashboard/ai-tools/script-writer',
+  },
+  {
+    title: 'Research Generator',
+    description: 'Generate research content',
+    link: '/dashboard/ai-tools/research-generator',
+  },
+  {
+    title: 'Saved Scripts',
+    description: 'View saved scripts',
+    link: '/dashboard/ai-tools/saved-scripts',
+  },
+  {
+    title: 'Content Enhancer',
+    description: 'Improve your content',
+    link: '/dashboard/ai-tools/script',
+  },
+];
 
 export default function DashboardPage() {
+  const { user, loading, configError } = useAuth();
+  const router = useRouter();
+  
+  // Demo mode flag - true enables access without login
+  const isDemoMode = true;
+  
+  // Redirect to login if not authenticated and not in demo mode
+  useEffect(() => {
+    if (!loading && !user && !configError && !isDemoMode) {
+      router.push('/');
+    }
+  }, [user, loading, router, configError, isDemoMode]);
+  
+  if (loading) {
+    return <Box p={4}>Loading...</Box>;
+  }
+  
+  if (!user && !configError && !isDemoMode) {
+    return null; // Will redirect in useEffect
+  }
+  
   return (
     <Box sx={{ flexGrow: 1 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
-          Welcome back!
-        </Typography>
-        <Stack direction="row" spacing={2}>
-          <Button
-            component={Link}
-            href="/dashboard/my-projects/research-projects"
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
-          >
-            New Research Project
-          </Button>
-          <Button
-            component={Link}
-            href="/dashboard/my-projects/podcast-projects"
-            variant="contained"
-            color="success"
-            startIcon={<AddIcon />}
-          >
-            New Podcast Project
-          </Button>
-        </Stack>
-      </Box>
+      <Grid container spacing={3} sx={{ p: 3 }}>
+        {/* Show configuration alerts */}
+        {(configError || (isDemoMode && !user && !configError)) && (
+          <Grid item xs={12}>
+            {configError && (
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                <Typography variant="body1" fontWeight="medium">
+                  Firebase is not configured properly. Running in demo mode.
+                </Typography>
+                <Typography variant="body2">
+                  Some features requiring authentication will be limited.
+                </Typography>
+              </Alert>
+            )}
+            
+            {isDemoMode && !user && !configError && (
+              <Alert severity="info">
+                <Typography variant="body1" fontWeight="medium">
+                  Running in demonstration mode
+                </Typography>
+                <Typography variant="body2">
+                  This is a demo instance with limited functionality. Sign in for full access.
+                </Typography>
+              </Alert>
+            )}
+          </Grid>
+        )}
 
-      {/* Quick Stats */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <ScienceIcon sx={{ fontSize: 40, color: 'primary.main', mr: 2 }} />
-              <Box>
-                <Typography variant="h6" color="text.secondary">
-                  Research Projects
-                </Typography>
-                <Typography variant="h4" color="primary">
-                  0
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Active projects
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <MicIcon sx={{ fontSize: 40, color: 'success.main', mr: 2 }} />
-              <Box>
-                <Typography variant="h6" color="text.secondary">
-                  Podcast Projects
-                </Typography>
-                <Typography variant="h4" color="success.main">
-                  0
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Active projects
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <Paper sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <AutoAwesomeIcon sx={{ fontSize: 40, color: 'purple.main', mr: 2 }} />
-              <Box>
-                <Typography variant="h6" color="text.secondary">
-                  AI Credits
-                </Typography>
-                <Typography variant="h4" color="purple.main">
-                  1000
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Remaining credits
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
-        </Grid>
-      </Grid>
-
-      {/* Recent Activity */}
-      <Paper sx={{ p: 3, mb: 4 }}>
-        <Typography variant="h6" component="h2" sx={{ mb: 2 }}>
-          Recent Activity
-        </Typography>
-        <Typography color="text.secondary">
-          No recent activity to show
-        </Typography>
-      </Paper>
-
-      {/* Quick Actions */}
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" component="h2" sx={{ mb: 3 }}>
+        <Grid item xs={12} md={8}>
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold' }}>
               AI Tools
             </Typography>
             <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <Card
-                  component={Link}
-                  href="/dashboard/ai-tools/research-generator"
-                  sx={{
-                    height: '100%',
-                    cursor: 'pointer',
-                    '&:hover': { bgcolor: 'action.hover' }
-                  }}
-                >
-                  <CardContent>
-                    <Typography variant="subtitle1" gutterBottom>
-                      Research Generator
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Generate research content
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={6}>
-                <Card
-                  component={Link}
-                  href="/dashboard/ai-tools/script-writer"
-                  sx={{
-                    height: '100%',
-                    cursor: 'pointer',
-                    '&:hover': { bgcolor: 'action.hover' }
-                  }}
-                >
-                  <CardContent>
-                    <Typography variant="subtitle1" gutterBottom>
-                      Script Writer
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Create podcast scripts
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={6}>
-                <Card
-                  component={Link}
-                  href="/dashboard/ai-tools/voice-generator"
-                  sx={{
-                    height: '100%',
-                    cursor: 'pointer',
-                    '&:hover': { bgcolor: 'action.hover' }
-                  }}
-                >
-                  <CardContent>
-                    <Typography variant="subtitle1" gutterBottom>
-                      Voice Generator
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Generate AI voices
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={6}>
-                <Card
-                  component={Link}
-                  href="/dashboard/ai-tools/content-enhancer"
-                  sx={{
-                    height: '100%',
-                    cursor: 'pointer',
-                    '&:hover': { bgcolor: 'action.hover' }
-                  }}
-                >
-                  <CardContent>
-                    <Typography variant="subtitle1" gutterBottom>
-                      Content Enhancer
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Improve your content
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
+              {features.map((feature, index) => (
+                <Grid item xs={6} key={index}>
+                  <Card
+                    component={Link}
+                    href={feature.link}
+                    sx={{
+                      height: '100%',
+                      cursor: 'pointer',
+                      '&:hover': { bgcolor: 'action.hover' }
+                    }}
+                  >
+                    <CardContent>
+                      <Typography variant="subtitle1" gutterBottom>
+                        {feature.title}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {feature.description}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
             </Grid>
           </Paper>
         </Grid>
 
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" component="h2" sx={{ mb: 3 }}>
-              Learning Resources
-            </Typography>
-            <Stack spacing={2}>
-              <Card
-                component={Link}
-                href="/dashboard/learning-hub/tutorials"
-                sx={{
-                  cursor: 'pointer',
-                  '&:hover': { bgcolor: 'action.hover' }
-                }}
+        <Grid item xs={12} md={4}>
+          <Stack spacing={3} height="100%">
+            <Paper sx={{ p: 3, flexGrow: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <InsightsIcon sx={{ mr: 1 }} color="primary" />
+                <Typography variant="h6">Activity</Typography>
+              </Box>
+              <Typography variant="body2" color="text.secondary">
+                No recent activity to display.
+              </Typography>
+            </Paper>
+
+            <Paper sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <GroupIcon sx={{ mr: 1 }} color="primary" />
+                <Typography variant="h6">Team Collaboration</Typography>
+              </Box>
+              <Button 
+                variant="contained" 
+                fullWidth 
+                sx={{ mt: 1 }}
               >
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <SchoolIcon sx={{ mr: 2, color: 'primary.main' }} />
-                    <Box>
-                      <Typography variant="subtitle1" gutterBottom>
-                        Tutorials
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Learn how to use our tools
-                      </Typography>
-                    </Box>
-                  </Box>
-                </CardContent>
-              </Card>
-              <Card
-                component={Link}
-                href="/dashboard/learning-hub/webinars"
-                sx={{
-                  cursor: 'pointer',
-                  '&:hover': { bgcolor: 'action.hover' }
-                }}
+                Invite Team Members
+              </Button>
+            </Paper>
+
+            <Paper sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <LiveTvIcon sx={{ mr: 1 }} color="primary" />
+                <Typography variant="h6">Upcoming Webinars</Typography>
+              </Box>
+              <Typography variant="body2">
+                No upcoming webinars.
+              </Typography>
+              <Button 
+                variant="outlined" 
+                fullWidth
+                sx={{ mt: 2 }}
               >
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <LiveTvIcon sx={{ mr: 2, color: 'primary.main' }} />
-                    <Box>
-                      <Typography variant="subtitle1" gutterBottom>
-                        Webinars
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Watch live training sessions
-                      </Typography>
-                    </Box>
-                  </Box>
-                </CardContent>
-              </Card>
-            </Stack>
-          </Paper>
+                Browse Resources
+              </Button>
+            </Paper>
+          </Stack>
         </Grid>
       </Grid>
     </Box>

@@ -22,7 +22,7 @@ import { useAuth } from '@/providers/AuthProvider';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn, signUp, user, loading: authLoading } = useAuth();
+  const { signIn, signUp, user, loading: authLoading, configError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -85,9 +85,22 @@ export default function LoginPage() {
       } else {
         setError('Please enter both email and password');
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Authentication error:', err);
-      setError(`Failed to ${isSignUp ? 'sign up' : 'sign in'}. ${isSignUp ? 'Email may already be in use.' : 'Please check your credentials.'}`);
+      
+      // Convert to type with message property
+      const error = err as { message?: string };
+      
+      // Handle specific Firebase errors
+      if (error?.message?.includes('auth/api-key-not-valid')) {
+        setError('The application is running in demo mode. Please use the demo login.');
+      } else if (error?.message?.includes('auth/invalid-credential')) {
+        setError('Invalid email or password. Please try again.');
+      } else if (error?.message?.includes('auth/email-already-in-use')) {
+        setError('Email already in use. Please try a different email or sign in.');
+      } else {
+        setError(`Failed to ${isSignUp ? 'sign up' : 'sign in'}. ${isSignUp ? 'Email may already be in use.' : 'Please check your credentials.'}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -108,6 +121,39 @@ export default function LoginPage() {
         backgroundColor: '#f5f7fa'
       }}>
         <CircularProgress size={50} thickness={4} />
+      </Box>
+    );
+  }
+
+  // Display appropriate error message when Firebase is misconfigured
+  if (configError) {
+    return (
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        backgroundColor: '#f5f7fa',
+        p: 3
+      }}>
+        <Alert severity="error" sx={{ mb: 3, maxWidth: 500 }}>
+          <Typography variant="h6" gutterBottom>Firebase Configuration Error</Typography>
+          <Typography paragraph>
+            The Firebase API key is invalid or missing. Please add the correct Firebase credentials in the environment variables.
+          </Typography>
+          <Typography>
+            This typically happens when deploying a new instance without setting up the required environment variables.
+          </Typography>
+        </Alert>
+        <Paper sx={{ p: 3, maxWidth: 500 }}>
+          <Typography variant="h6" gutterBottom>Required Environment Variables:</Typography>
+          <Box component="ul" sx={{ pl: 3 }}>
+            <Box component="li"><code>NEXT_PUBLIC_FIREBASE_API_KEY</code></Box>
+            <Box component="li"><code>NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN</code></Box>
+            <Box component="li"><code>NEXT_PUBLIC_FIREBASE_PROJECT_ID</code></Box>
+          </Box>
+        </Paper>
       </Box>
     );
   }
@@ -223,6 +269,19 @@ export default function LoginPage() {
                 >
                   {isSignUp ? 'Sign Up' : 'Sign In'}
                 </Typography>
+                
+                {/* Demo mode alert */}
+                <Alert 
+                  severity="info" 
+                  sx={{ 
+                    mb: 3,
+                    borderRadius: 2
+                  }}
+                >
+                  <Typography variant="body2">
+                    <strong>Demo Mode:</strong> Click &ldquo;{isSignUp ? 'Sign Up' : 'Sign In'}&rdquo; with any credentials to access the app.
+                  </Typography>
+                </Alert>
                 
                 {error && (
                   <Alert 
