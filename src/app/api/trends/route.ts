@@ -11,6 +11,7 @@ interface TrendingContent {
 interface TrendsData {
   news: TrendingContent[];
   discussions: TrendingContent[];
+  relatedQueries: string[];
 }
 
 export async function POST(request: Request) {
@@ -54,6 +55,12 @@ export async function POST(request: Request) {
           url: 'https://reddit.com/r/programming',
           score: 1200
         }
+      ],
+      relatedQueries: [
+        `${topic} trends`,
+        `${topic} future`,
+        `${topic} benefits`,
+        `${topic} industry impact`
       ]
     };
 

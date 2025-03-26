@@ -1,19 +1,12 @@
 {
+  "version": 2,
   "functions": {
-    "/api/script/outline": {
-      "maxDuration": 60
-    },
-    "/api/script/generate": {
-      "maxDuration": 60
-    },
-    "/api/research/generate": {
-      "maxDuration": 60
-    },
-    "/api/voice/generate": {
-      "maxDuration": 60
-    },
-    "/api/content/enhance": {
+    "src/app/api/**/*": {
       "maxDuration": 60
     }
-  }
+  },
+  "buildCommand": "next build",
+  "devCommand": "next dev",
+  "framework": "nextjs",
+  "outputDirectory": ".next"
 } 

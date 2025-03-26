@@ -8,9 +8,6 @@ import {
   CardContent,
   Container,
   Paper,
-  Stepper,
-  Step,
-  StepLabel,
   TextField,
   Typography,
   CircularProgress,
@@ -36,6 +33,9 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
+  Divider,
+  Chip,
+  Stack,
 } from '@mui/material';
 import { 
   Edit as EditIcon,
@@ -44,8 +44,12 @@ import {
   CheckCircle as CheckCircleIcon,
   Lightbulb as LightbulbIcon,
   Mic as MicIcon,
+  TrendingUp as TrendingUpIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
+import { WordnetPlugin } from '@/plugins/wordnet';
+import { CircularWordnet } from '@/components/CircularWordnet';
+import { TrendingContent } from '@/types/trends';
 
 interface SelectedPoint {
   sectionIndex: number;
@@ -123,8 +127,24 @@ export default function ScriptWriter() {
   } | null>(null);
   const [generationSteps, setGenerationSteps] = useState<GenerationStep[]>([]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [showCircularWordnet, setShowCircularWordnet] = useState(false);
+  const [selectedTrends, setSelectedTrends] = useState<{
+    news: TrendingContent[];
+    discussions: TrendingContent[];
+    relatedQueries: string[];
+  }>({
+    news: [],
+    discussions: [],
+    relatedQueries: [],
+  });
 
-  const steps = ['Enter Topic', 'Review & Select Points', 'Generated Script'];
+  const handleTrendsSelected = (trends: {
+    news: TrendingContent[];
+    discussions: TrendingContent[];
+    relatedQueries: string[];
+  }) => {
+    setSelectedTrends(trends);
+  };
 
   const handleGenerateOutline = async () => {
     if (!topic) {
@@ -138,7 +158,6 @@ export default function ScriptWriter() {
     setScript('');
     setSelectedPoints([]);
 
-    // Initialize generation steps
     const steps = outline?.sections.map(section => ({
       title: section.title,
       status: 'pending' as const,
@@ -148,22 +167,25 @@ export default function ScriptWriter() {
     setCurrentStepIndex(0);
 
     try {
-      // Fetch trends data
-      const trendsResponse = await fetch('/api/trends', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ topic }),
-      });
+      let trendsData = selectedTrends;
+      
+      if (Object.values(selectedTrends).every(arr => arr.length === 0)) {
+        const trendsResponse = await fetch('/api/trends', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ topic }),
+        });
 
-      if (!trendsResponse.ok) {
-        throw new Error('Failed to fetch trends data');
+        if (!trendsResponse.ok) {
+          throw new Error('Failed to fetch trends data');
+        }
+
+        trendsData = await trendsResponse.json();
+        setSelectedTrends(trendsData);
       }
 
-      const trendsData = await trendsResponse.json();
-
-      // Generate outline with trends data and duration
       const outlineResponse = await fetch('/api/script/outline', {
         method: 'POST',
         headers: {
@@ -189,6 +211,30 @@ export default function ScriptWriter() {
     }
   };
 
+  const flowCards = [
+    {
+      title: "Enter Topic",
+      icon: <EditIcon fontSize="large" />,
+      color: theme.palette.primary.main,
+      active: activeStep === 0,
+      completed: activeStep > 0,
+    },
+    {
+      title: "Select Points",
+      icon: <TrendingUpIcon fontSize="large" />,
+      color: theme.palette.secondary.main,
+      active: activeStep === 1,
+      completed: activeStep > 1,
+    },
+    {
+      title: "Final Script",
+      icon: <MicIcon fontSize="large" />,
+      color: theme.palette.success.main,
+      active: activeStep === 2,
+      completed: activeStep > 2,
+    }
+  ];
+
   const handleGenerateScript = async () => {
     if (!outline) {
       setError('No outline available');
@@ -199,7 +245,6 @@ export default function ScriptWriter() {
     setError('');
     setAiRating(null);
 
-    // Initialize generation steps
     const steps = outline.sections.map(section => ({
       title: section.title,
       status: 'pending' as const,
@@ -209,12 +254,9 @@ export default function ScriptWriter() {
     setCurrentStepIndex(0);
 
     try {
-      // Generate each section in parallel
       const scriptPartPromises = outline.sections.map((section, sectionIndex) => {
-        // Create a promise that updates progress for this section
         return new Promise<string>(async (resolve, reject) => {
           try {
-            // Start the section generation
             setGenerationSteps(current => 
               current.map((step, i) => ({
                 ...step,
@@ -222,7 +264,6 @@ export default function ScriptWriter() {
               }))
             );
 
-            // Simulate progress updates
             const progressInterval = setInterval(() => {
               setGenerationSteps(current => 
                 current.map((step, i) => ({
@@ -232,15 +273,14 @@ export default function ScriptWriter() {
               );
             }, 200);
 
-            // Generate the actual script part
             const response = await fetch('/api/script/generate', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 outline: { title: outline.title, sections: [section] },
                 selectedPoints: selectedPoints.filter(p => p.sectionIndex === sectionIndex),
-                duration: duration / outline.sections.length, // Duration per section
-                memberCount, // Add memberCount to the API call
+                duration: duration / outline.sections.length,
+                memberCount,
               }),
             });
 
@@ -250,7 +290,6 @@ export default function ScriptWriter() {
 
             const data = await response.json();
             
-            // Mark section as completed
             clearInterval(progressInterval);
             setGenerationSteps(current => 
               current.map((step, i) => ({
@@ -268,19 +307,17 @@ export default function ScriptWriter() {
         });
       });
 
-      // Wait for all sections to complete
       const scriptParts = await Promise.all(scriptPartPromises);
       const fullScript = scriptParts.join('\n\n[Smooth Transition]\n\n');
       setScript(fullScript);
 
-      // Get AI rating
       const ratingResponse = await fetch('/api/script/rate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           script: fullScript, 
           duration,
-          memberCount, // Add memberCount to rating API call
+          memberCount,
         }),
       });
 
@@ -311,7 +348,7 @@ export default function ScriptWriter() {
         sectionIndex, 
         pointIndex, 
         text,
-        promptType: 'example' // Default prompt type
+        promptType: 'example'
       }]);
     }
   };
@@ -351,7 +388,6 @@ export default function ScriptWriter() {
       minHeight: '100vh',
       bgcolor: 'background.default'
     }}>
-      {/* Main Content */}
       <Box 
         component="main" 
         sx={{ 
@@ -363,33 +399,96 @@ export default function ScriptWriter() {
         }}
       >
         <Container maxWidth="lg" sx={{ mt: 0 }}>
-          <Typography 
-            variant="h5" 
-            component="h1" 
-            sx={{ 
-              fontSize: { xs: '1.1rem', sm: '1.25rem' },
-              fontWeight: 500,
-              mb: { xs: 1, sm: 1.5 }
-            }}
-          >
-            AI Script Writer
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography 
+              variant="h5" 
+              component="h1" 
+              sx={{ 
+                fontSize: { xs: '1.1rem', sm: '1.25rem' },
+                fontWeight: 500,
+              }}
+            >
+              AI Script Writer
+            </Typography>
+            <Button 
+              variant="outlined" 
+              color="error" 
+              onClick={() => {
+                setTopic('');
+                setScript('');
+                setSelectedPoints([]);
+                setActiveStep(0);
+                setOutline(null);
+                setSelectedTrends({
+                  news: [],
+                  discussions: [],
+                  relatedQueries: [],
+                });
+              }}
+              size="small"
+            >
+              Reset
+            </Button>
+          </Box>
 
-          <Stepper 
-            activeStep={activeStep} 
-            sx={{ 
-              mb: { xs: 1, sm: 1.5 },
-              '& .MuiStepLabel-label': {
-                fontSize: { xs: '0.75rem', sm: '0.875rem' }
-              }
-            }}
+          <Stack 
+            direction={{ xs: 'column', sm: 'row' }} 
+            spacing={2} 
+            sx={{ mb: 3 }}
+            justifyContent="center"
           >
-            {steps.map((label) => (
-              <Step key={label}>
-                <StepLabel>{label}</StepLabel>
-              </Step>
+            {flowCards.map((card, index) => (
+              <Card 
+                key={index}
+                sx={{ 
+                  width: { xs: '100%', sm: 0 },
+                  flexGrow: 1,
+                  height: 80,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  cursor: card.active || card.completed ? 'pointer' : 'default',
+                  bgcolor: card.active ? `${card.color}15` : 'background.paper',
+                  borderLeft: card.active ? `4px solid ${card.color}` : 'none',
+                  boxShadow: card.active ? 3 : 1,
+                  transition: 'all 0.3s ease',
+                  opacity: card.active || card.completed ? 1 : 0.6,
+                  '&:hover': {
+                    boxShadow: card.active || card.completed ? 4 : 1,
+                    opacity: 1,
+                  }
+                }}
+                onClick={() => {
+                  if (card.completed) {
+                    setActiveStep(index);
+                  }
+                }}
+              >
+                <Box sx={{ color: card.color, mb: 1 }}>
+                  {card.icon}
+                </Box>
+                <Typography variant="subtitle1" align="center">
+                  {card.title}
+                </Typography>
+                {card.completed && !card.active && (
+                  <Chip 
+                    label="Completed" 
+                    size="small" 
+                    sx={{ 
+                      mt: 1, 
+                      bgcolor: `${card.color}20`, 
+                      color: card.color,
+                      fontSize: '0.7rem',
+                      height: 20,
+                    }} 
+                  />
+                )}
+              </Card>
             ))}
-          </Stepper>
+          </Stack>
+
+          <Divider sx={{ mb: 3 }} />
 
           {error && (
             <Alert severity="error" sx={{ mb: { xs: 1, sm: 1.5 } }}>
@@ -488,15 +587,65 @@ export default function ScriptWriter() {
                       )}
                     </Button>
                   </Box>
-                  <Typography 
-                    variant="body2" 
-                    color="text.secondary"
-                    sx={{ 
-                      fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                    }}
-                  >
-                    Select your desired podcast duration and number of speakers. The AI will optimize the content and pacing accordingly.
-                  </Typography>
+                  
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography 
+                      variant="body2" 
+                      color="text.secondary"
+                      sx={{ 
+                        fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                      }}
+                    >
+                      Select your desired podcast duration and number of speakers. The AI will optimize the content and pacing accordingly.
+                    </Typography>
+                    
+                    {topic.trim() && (
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        size="small"
+                        startIcon={<TrendingUpIcon />}
+                        onClick={() => setShowCircularWordnet(true)}
+                        sx={{ 
+                          ml: 2,
+                          boxShadow: 2,
+                          '&:hover': {
+                            boxShadow: 4
+                          }
+                        }}
+                      >
+                        View Visualization
+                      </Button>
+                    )}
+                  </Box>
+                  
+                  {topic.trim() && (
+                    <Box sx={{ 
+                      mt: 3, 
+                      border: '1px solid',
+                      borderColor: theme.palette.primary.light,
+                      borderRadius: 2,
+                      p: 3,
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                      bgcolor: 'background.paper',
+                    }}>
+                      <Typography 
+                        variant="subtitle1" 
+                        gutterBottom 
+                        sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: 1,
+                          fontWeight: 500,
+                          color: theme.palette.primary.main
+                        }}
+                      >
+                        <TrendingUpIcon color="primary" fontSize="small" />
+                        Trending Topics for &ldquo;{topic}&rdquo;
+                      </Typography>
+                      <WordnetPlugin topic={topic} onTrendsSelected={handleTrendsSelected} />
+                    </Box>
+                  )}
                 </Box>
               )}
 
@@ -523,10 +672,8 @@ export default function ScriptWriter() {
                       size="small"
                       onClick={() => {
                         if (selectedPoints.length === outline.sections.reduce((acc, section) => acc + section.points.length, 0)) {
-                          // If all points are selected, deselect all
                           setSelectedPoints([]);
                         } else {
-                          // Select all points
                           const allPoints: SelectedPoint[] = [];
                           outline.sections.forEach((section, sectionIndex) => {
                             section.points.forEach((point, pointIndex) => {
@@ -685,7 +832,6 @@ export default function ScriptWriter() {
                   </Paper>
                   
                   <Grid container spacing={3}>
-                    {/* User Rating */}
                     <Grid item xs={12} md={6}>
                       <Paper sx={{ 
                         p: 2,
@@ -711,7 +857,6 @@ export default function ScriptWriter() {
                       </Paper>
                     </Grid>
 
-                    {/* AI Rating */}
                     <Grid item xs={12} md={6}>
                       <Paper sx={{ p: 2 }}>
                         <Typography variant="h6" gutterBottom>
@@ -939,6 +1084,14 @@ export default function ScriptWriter() {
           </Card>
         </Container>
       </Box>
+
+      <CircularWordnet
+        open={showCircularWordnet}
+        onClose={() => setShowCircularWordnet(false)}
+        topic={topic || ''}
+        trends={selectedTrends || { news: [], discussions: [], relatedQueries: [] }}
+        onTrendsSelected={handleTrendsSelected}
+      />
 
       <Dialog 
         open={elaborationDialog} 

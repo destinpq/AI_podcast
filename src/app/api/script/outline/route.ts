@@ -14,6 +14,7 @@ interface RequestBody {
   trendsData?: {
     news: TrendingContent[];
     discussions: TrendingContent[];
+    relatedQueries?: string[];
   };
   duration: number;
 }
