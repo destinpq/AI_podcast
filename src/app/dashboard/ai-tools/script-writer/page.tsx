@@ -1,7 +1,7 @@
 'use client';
 
-import TempScriptWriter from './temp';
+import ScriptWriter from './index';
 
-export default function ScriptWriter() {
-  return <TempScriptWriter />;
+export default function ScriptWriterPage() {
+  return <ScriptWriter />;
 } 
