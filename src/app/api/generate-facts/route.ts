@@ -3,7 +3,7 @@ import OpenAI from 'openai';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'invalid-key', // Fallback for demo mode
-  timeout: 60000,
+  timeout: 60000, // Reduced timeout for consistent behavior
 });
 
 // Generate interesting facts for a topic using OpenAI

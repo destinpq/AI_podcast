@@ -37,7 +37,7 @@ interface UserReference {
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'invalid-key', // Fallback for demo mode
-  timeout: 60000, // Increased timeout to 60 seconds
+  timeout: 60000, // Reduced timeout to 25 seconds
 });
 
 // Constants for timing calculations

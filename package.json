@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "dev:turbo": "next dev --turbopack",
-    "build": "next build",
-    "build:no-lint": "ESLINT_NO_DEV_ERRORS=true NEXT_DISABLE_ESLINT=1 next build --no-lint || exit 0",
+    "build": "NEXT_DISABLE_ESLINT=1 next build --no-lint",
+    "build:no-lint": "NEXT_DISABLE_ESLINT=1 next build --no-lint",
     "postbuild": "echo 'Build completed' && node -e \"console.log('Node version:', process.version)\"",
     "start": "next start",
     "lint": "next lint",

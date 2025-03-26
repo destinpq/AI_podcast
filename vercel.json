@@ -2,12 +2,12 @@
   "version": 2,
   "functions": {
     "app/api/**/*": {
-      "maxDuration": 120
+      "maxDuration": 30
     }
   },
-  "buildCommand": "NODE_ENV=production NEXT_DISABLE_ESLINT=1 next build --no-lint || exit 0",
+  "buildCommand": "NEXT_DISABLE_ESLINT=1 next build --no-lint",
   "devCommand": "next dev",
-  "installCommand": "yarn install",
+  "installCommand": "npm install",
   "framework": "nextjs",
   "outputDirectory": ".next",
   "ignoreCommand": "! git diff --quiet HEAD^ HEAD ./ || echo 'Only content updates, skipping build'",
