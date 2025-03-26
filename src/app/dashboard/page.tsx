@@ -14,8 +14,6 @@ import {
   Alert
 } from '@mui/material';
 import {
-  AutoStories as AutoStoriesIcon,
-  Podcasts as PodcastsIcon,
   Insights as InsightsIcon,
   Group as GroupIcon,
   LiveTv as LiveTvIcon

@@ -279,7 +279,7 @@ export default function LoginPage() {
                   }}
                 >
                   <Typography variant="body2">
-                    <strong>Demo Mode:</strong> Click &ldquo;{isSignUp ? 'Sign Up' : 'Sign In'}&rdquo; with any credentials to access the app.
+                    <strong>Demo Mode Active:</strong> Enter any email/password and click &ldquo;{isSignUp ? 'Sign Up' : 'Sign In'}&rdquo; to access the app. No Firebase credentials needed.
                   </Typography>
                 </Alert>
                 

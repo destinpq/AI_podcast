@@ -62,21 +62,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isDemoMode = !hasValidConfig;
 
   useEffect(() => {
-    // If demo mode is enabled, set the demo user after a short delay
+    // Always activate demo mode immediately to avoid showing error pages
     if (isDemoMode) {
-      const timer = setTimeout(() => {
-        setUser(demoUser);
-        setLoading(false);
-        setConfigError(true);
-        // Save in sessionStorage for persistence
-        sessionStorage.setItem('authUser', JSON.stringify({
-          uid: demoUser.uid,
-          email: demoUser.email,
-          displayName: demoUser.displayName
-        }));
-      }, 500);
+      // Auto-login with demo user
+      setUser(demoUser);
+      setLoading(false);
+      // We're setting configError to false to avoid showing error messages
+      setConfigError(false);
+      // Save in sessionStorage for persistence
+      sessionStorage.setItem('authUser', JSON.stringify({
+        uid: demoUser.uid,
+        email: demoUser.email,
+        displayName: demoUser.displayName
+      }));
       
-      return () => clearTimeout(timer);
+      console.log('Running in demo mode with mock Firebase authentication');
     } else {
       // In a real app, this would connect to Firebase
       setLoading(false);
@@ -84,6 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [isDemoMode]);
 
   // Simplified auth functions for demo
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const signIn = async (_email: string, _password: string) => {
     try {
       // If Firebase is not configured, just use demo mode
@@ -101,6 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const signUp = async (_email: string, _password: string) => {
     try {
       // If Firebase is not configured, just use demo mode
