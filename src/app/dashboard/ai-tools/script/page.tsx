@@ -33,7 +33,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { TrendingContent } from '@/types/trends';
 import { WordnetPlugin } from '@/plugins/wordnet';
-import { CircularWordnet } from '@/components/CircularWordnet';
+import CircularWordnet from '@/components/CircularWordnet';
 
 export default function ScriptGenerator() {
   const theme = useTheme();

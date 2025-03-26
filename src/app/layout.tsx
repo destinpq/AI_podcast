@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import MuiProvider from "./components/MuiProvider";
+import { AuthProvider } from "@/providers/AuthProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,7 +20,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <MuiProvider>
-          {children}
+          <AuthProvider>
+            {children}
+          </AuthProvider>
         </MuiProvider>
       </body>
     </html>

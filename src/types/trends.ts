@@ -1,7 +1,8 @@
+// Define types for trending content
 export interface TrendingContent {
   title: string;
-  source: string;
-  url: string;
-  score?: number;
+  url?: string;
+  source?: string;
   publishedAt?: string;
+  score?: number;
 } 
