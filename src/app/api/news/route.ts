@@ -1,100 +1,118 @@
 import { NextResponse } from 'next/server';
 
-// Mock news data for demo mode (when API key is not available)
-const getMockNewsData = (query: string) => {
-  return {
-    status: 'ok',
-    totalResults: 5,
-    articles: [
-      {
-        source: { id: 'tech-crunch', name: 'TechCrunch' },
-        author: 'Jane Smith',
-        title: `Latest developments in ${query} technology`,
-        description: `A comprehensive overview of the latest trends in ${query}, focusing on breakthrough technologies and implementations.`,
-        url: 'https://techcrunch.com/example',
-        urlToImage: 'https://example.com/image1.jpg',
-        publishedAt: new Date().toISOString(),
-        content: 'Lorem ipsum dolor sit amet...'
-      },
-      {
-        source: { id: 'wired', name: 'Wired' },
-        author: 'John Doe',
-        title: `How ${query} is transforming the industry`,
-        description: `An in-depth analysis of how ${query} solutions are revolutionizing traditional business models and creating new opportunities.`,
-        url: 'https://wired.com/example',
-        urlToImage: 'https://example.com/image2.jpg',
-        publishedAt: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-        content: 'Lorem ipsum dolor sit amet...'
-      },
-      {
-        source: { id: 'cnn', name: 'CNN' },
-        author: 'Robert Johnson',
-        title: `The future of ${query}: What experts are saying`,
-        description: `Leading experts in the field of ${query} share their predictions about where the technology is headed in the next decade.`,
-        url: 'https://cnn.com/example',
-        urlToImage: 'https://example.com/image3.jpg',
-        publishedAt: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
-        content: 'Lorem ipsum dolor sit amet...'
-      },
-      {
-        source: { id: 'bbc', name: 'BBC' },
-        author: 'Emily Brown',
-        title: `${query} adoption growing worldwide`,
-        description: `A global survey shows that ${query} implementation has increased by 35% in the last quarter, with particularly strong growth in emerging markets.`,
-        url: 'https://bbc.com/example',
-        urlToImage: 'https://example.com/image4.jpg',
-        publishedAt: new Date(Date.now() - 259200000).toISOString(), // 3 days ago
-        content: 'Lorem ipsum dolor sit amet...'
-      },
-      {
-        source: { id: 'forbes', name: 'Forbes' },
-        author: 'Michael Wilson',
-        title: `Top 5 ${query} startups to watch in 2023`,
-        description: `These innovative startups are making waves in the ${query} space with their groundbreaking approaches and technologies.`,
-        url: 'https://forbes.com/example',
-        urlToImage: 'https://example.com/image5.jpg',
-        publishedAt: new Date(Date.now() - 345600000).toISOString(), // 4 days ago
-        content: 'Lorem ipsum dolor sit amet...'
-      }
-    ]
-  };
-};
+const NEWS_API_KEY = process.env.NEWS_API_KEY;
+const NEWS_API_URL = 'https://newsapi.org/v2/everything';
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const query = searchParams.get('q');
-  
-  if (!query) {
-    return NextResponse.json(
-      { error: 'Query parameter is required' },
-      { status: 400 }
-    );
+  try {
+    const { searchParams } = new URL(request.url);
+    const query = searchParams.get('q');
+    
+    if (!query) {
+      return NextResponse.json({ error: 'Missing query parameter' }, { status: 400 });
+    }
+    
+    // Attempt to fetch news from the API
+    try {
+      const articles = await fetchNewsArticles(query);
+      return NextResponse.json({ articles });
+    } catch (apiError) {
+      console.error('News API error:', apiError);
+      
+      // Fallback to generating mock news articles
+      const mockArticles = generateMockArticles(query);
+      return NextResponse.json({ 
+        articles: mockArticles,
+        notice: 'Using generated news due to API limitations'
+      });
+    }
+  } catch (error) {
+    console.error('Error in news API route:', error);
+    return NextResponse.json({ error: 'Failed to fetch news' }, { status: 500 });
   }
+}
 
-  // Use News API if key is available, otherwise use mock data
-  const apiKey = process.env.NEWS_API_KEY;
+async function fetchNewsArticles(query: string) {
+  // If no API key, use mock data
+  if (!NEWS_API_KEY) {
+    console.log('No News API key found, using mock data');
+    return generateMockArticles(query);
+  }
   
   try {
-    if (!apiKey) {
-      console.log('NEWS_API_KEY not found, using mock data');
-      return NextResponse.json(getMockNewsData(query));
-    }
-
-    const response = await fetch(
-      `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&sortBy=relevancy&language=en&pageSize=10&apiKey=${apiKey}`,
-      { next: { revalidate: 3600 } } // Cache for 1 hour
-    );
-
+    // Build the API URL with params
+    const url = new URL(NEWS_API_URL);
+    url.searchParams.append('q', query);
+    url.searchParams.append('sortBy', 'relevancy');
+    url.searchParams.append('language', 'en');
+    url.searchParams.append('pageSize', '10');
+    url.searchParams.append('apiKey', NEWS_API_KEY);
+    
+    // Make the request
+    const response = await fetch(url.toString(), { 
+      next: { revalidate: 3600 } // Cache for 1 hour
+    });
+    
+    // Check for a successful response
     if (!response.ok) {
+      console.error(`News API error: ${response.status} ${response.statusText}`);
       throw new Error(`News API error: ${response.statusText}`);
     }
-
+    
     const data = await response.json();
-    return NextResponse.json(data);
+    
+    // Check if data has articles
+    if (!data.articles || !Array.isArray(data.articles)) {
+      console.error('Invalid response from News API:', data);
+      throw new Error('Invalid response from News API');
+    }
+    
+    return data.articles;
   } catch (error) {
     console.error('Error fetching news:', error);
-    
-    // Fall back to mock data on error
-    return NextResponse.json(getMockNewsData(query));
+    throw error;
   }
+}
+
+function generateMockArticles(query: string) {
+  // Generate random dates within the past month
+  const getRandomDate = () => {
+    const date = new Date();
+    date.setDate(date.getDate() - Math.floor(Math.random() * 30));
+    return date.toISOString();
+  };
+  
+  // Generate random text snippet
+  const getRandomSnippet = () => {
+    const snippets = [
+      `New research on ${query} reveals surprising connections to everyday life.`,
+      `Experts debate the implications of recent ${query} developments.`,
+      `How ${query} is changing the landscape of modern society.`,
+      `The unexpected ways ${query} impacts various industries.`,
+      `Understanding ${query}: A comprehensive analysis.`
+    ];
+    return snippets[Math.floor(Math.random() * snippets.length)];
+  };
+  
+  // Generate random source
+  const getRandomSource = () => {
+    const sources = [
+      'Science Daily', 'Tech Insider', 'Research Journal', 'Innovation Today',
+      'The Academic Review', 'Future Trends', 'Global Insights'
+    ];
+    return sources[Math.floor(Math.random() * sources.length)];
+  };
+  
+  // Generate mock articles
+  return Array(8).fill(null).map((_, index) => ({
+    title: `${index === 0 ? 'Breaking: ' : ''}${getRandomSnippet()}`,
+    description: `This article explores various aspects of ${query} including recent advancements, challenges, and future prospects. Researchers have been examining this topic in depth.`,
+    url: `https://example.com/article/${Math.random().toString(36).substring(2, 10)}`,
+    urlToImage: `https://source.unsplash.com/featured/600x350?${encodeURIComponent(query)}&sig=${index}`,
+    publishedAt: getRandomDate(),
+    source: {
+      name: getRandomSource(),
+      id: `source-${index}`
+    }
+  }));
 } 

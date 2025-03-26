@@ -1,11 +1,6 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || 'invalid-key', // Fallback for demo mode
-  timeout: 60000, // Reduced timeout for consistent behavior
-});
-
 // Generate news articles for a topic using OpenAI
 async function generateAINews(topic: string): Promise<{ title: string, content: string }[]> {
   try {
@@ -32,52 +27,70 @@ async function generateAINews(topic: string): Promise<{ title: string, content: 
     }
 
     // Generate news with OpenAI
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
     const completion = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
+      model: "gpt-3.5-turbo",
       messages: [
         {
           role: "system",
-          content: "You are a specialized AI for generating realistic, informative news article summaries. Create balanced, factual, and engaging content."
+          content: "You are a helpful assistant that generates fictional news article summaries for podcasters to discuss. Provide 5 article summaries relevant to the topic. RESPOND ONLY WITH VALID JSON in this format: { \"articles\": [ { \"title\": \"Article Title\", \"content\": \"Brief summary of article content\" } ] }. Do not include any other text outside of the JSON."
         },
         {
           role: "user",
-          content: `Generate 5 different news article summaries about "${topic}". 
-          
-          Each article should include:
-          1. A compelling headline/title
-          2. A brief summary of the article content (2-3 sentences)
-          
-          Format the response as a JSON array with objects containing 'title' and 'content' fields.
-          Make these sound like actual news articles - balanced, informative, and diverse in perspective.
-          Cover different aspects of the topic, including recent developments, research, impact, industry perspectives, and future outlook.`
+          content: `Generate 5 fictional news article summaries about: ${topic}. Make the titles engaging and the summaries informative but brief. RESPOND WITH VALID JSON ONLY.`
         }
       ],
       temperature: 0.7,
-      response_format: { type: "json_object" },
-      max_tokens: 1000,
+      max_tokens: 800,
     });
 
-    // Parse the JSON response
-    const content = completion.choices[0].message.content;
-    if (!content) {
-      throw new Error('Empty response from OpenAI');
+    console.log('OpenAI response:', completion.choices[0].message.content);
+    
+    // Get the content from the completion
+    const content = completion.choices[0].message.content?.trim() || '';
+    
+    // Check if content starts and ends with JSON brackets
+    if (!content.startsWith('{') || !content.endsWith('}')) {
+      console.error('Invalid JSON format received from OpenAI:', content);
+      // Try to extract JSON from the response if possible
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const extractedJSON = jsonMatch[0];
+        console.log('Extracted JSON from response:', extractedJSON);
+        try {
+          const parsedResponse = JSON.parse(extractedJSON);
+          return parsedResponse.articles || [];
+        } catch (parseError) {
+          console.error('Failed to parse extracted JSON:', parseError);
+          // Return a fallback response
+          return [
+            { title: `Latest news about ${topic}`, content: "We're experiencing issues retrieving news. Please try again." }
+          ];
+        }
+      }
+      
+      // If no JSON could be extracted, return fallback
+      return [
+        { title: `Latest news about ${topic}`, content: "We're experiencing issues retrieving news. Please try again." }
+      ];
     }
-
-    const parsedResponse = JSON.parse(content);
-    return parsedResponse.articles || [];
+    
+    try {
+      const parsedResponse = JSON.parse(content);
+      return parsedResponse.articles || [];
+    } catch (parseError) {
+      console.error('Error parsing JSON:', parseError, 'Content:', content);
+      return [
+        { title: `Latest news about ${topic}`, content: "We're experiencing issues retrieving news. Please try again." }
+      ];
+    }
   } catch (error) {
     console.error('Error generating news with OpenAI:', error);
-    
-    // Return mock data on error
     return [
-      {
-        title: `Latest developments in ${topic}`,
-        content: `A recent breakthrough in ${topic} has researchers excited about potential applications in everyday technology.`
-      },
-      {
-        title: `${topic} market expected to grow in coming years`,
-        content: `Industry analysts predict significant expansion in the ${topic} sector, with new opportunities for businesses and consumers alike.`
-      }
+      { title: `News about ${topic}`, content: "We're experiencing issues retrieving news. Please try again." }
     ];
   }
 }

@@ -39,6 +39,7 @@ import {
   Tabs,
   Tab,
   Chip,
+  Link,
   Divider,
   Avatar,
   CardMedia,
@@ -46,9 +47,7 @@ import {
   Stack,
 } from '@mui/material';
 import { 
-  Person as PersonIcon,
-  MenuBook as MenuBookIcon,
-  Check as CheckIcon,
+  Edit as EditIcon,
   Star as StarIcon,
   StarBorder as StarBorderIcon,
   CheckCircle as CheckCircleIcon,
@@ -202,6 +201,7 @@ export default function ScriptWriter() {
     };
   } | null>(null);
   const [generationSteps, setGenerationSteps] = useState<GenerationStep[]>([]);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [tabValue, setTabValue] = useState(0);
   const [trendsData, setTrendsData] = useState<{
     news: TrendingContent[];
@@ -211,6 +211,7 @@ export default function ScriptWriter() {
   const [showWordnet, setShowWordnet] = useState(false);
   const [featureProgress, setFeatureProgress] = useState<number>(0);
   const [newsArticles, setNewsArticles] = useState<NewsArticle[]>([]);
+  const [newsLoading, setNewsLoading] = useState(false);
   const [newsError, setNewsError] = useState<string | null>(null);
   const [factsError, setFactsError] = useState<string | null>(null);
   
@@ -232,16 +233,12 @@ export default function ScriptWriter() {
   // Define wizard steps
   const steps = ['Enter Topic', 'Select News Articles', 'Add Unique Facts', 'Choose Content Points', 'Generated Script'];
 
-  // Initialize selectedReferences with all existing references by default
-  useEffect(() => {
-    setSelectedReferences(userReferences.map(ref => ref.id));
-  }, [userReferences]);
-
   // Fetch news articles for the topic
   useEffect(() => {
     const fetchNews = async () => {
       if (topic.trim().length < 3) return;
       
+      setNewsLoading(true);
       setNewsError(null);
       
       try {
@@ -258,6 +255,8 @@ export default function ScriptWriter() {
       } catch (err) {
         console.error('Error fetching news:', err);
         setNewsError('Failed to load news articles');
+      } finally {
+        setNewsLoading(false);
       }
     };
     
@@ -295,6 +294,7 @@ export default function ScriptWriter() {
       progress: 0
     })) || [];
     setGenerationSteps(steps);
+    setCurrentStepIndex(0);
 
     try {
       // Fetch trends data
@@ -457,7 +457,6 @@ export default function ScriptWriter() {
     }
   };
 
-  // Modify the handleGenerateScript function to show selection UI instead of immediate generation
   const handleGenerateScript = async () => {
     if (!outline) {
       setError('No outline available');
@@ -468,45 +467,7 @@ export default function ScriptWriter() {
       setError('Please select at least one content point in Step 4');
       return;
     }
-    
-    // Instead of showing confirmation dialog, show content selection popup
-    setContentSelectionOpen(true);
-    setTabValue(0); // Start on News Articles tab (index 0)
-    
-    // If we don't have enough content yet, fetch it
-    if (userReferences.filter(ref => ref.type === 'article').length === 0) {
-      await generateNewsSummaries();
-    }
-    
-    if (userReferences.filter(ref => ref.type === 'factoid').length === 0) {
-      await generateFacts();
-    }
-  };
 
-  // Add a new state for content selection mode
-  const [contentSelectionOpen, setContentSelectionOpen] = useState(false);
-  const [selectedReferences, setSelectedReferences] = useState<string[]>([]);
-
-  // Function to toggle selection of references
-  const toggleReferenceSelection = (id: string) => {
-    setSelectedReferences(prev => 
-      prev.includes(id) 
-        ? prev.filter(refId => refId !== id)
-        : [...prev, id]
-    );
-  };
-
-  // Function to proceed with generation after selecting content
-  const proceedWithScriptGeneration = async () => {
-    // Close content selection UI
-    setContentSelectionOpen(false);
-    
-    // Filter references to only use selected ones
-    const filteredReferences = userReferences.filter(ref => 
-      selectedReferences.includes(ref.id)
-    );
-    
-    // Start the actual generation process
     setLoading(true);
     setError('');
     setAiRating(null);
@@ -516,16 +477,17 @@ export default function ScriptWriter() {
     const maxWordCount = duration * 150;
 
     // Initialize generation steps
-    const steps = outline?.sections.map(section => ({
+    const steps = outline.sections.map(section => ({
       title: section.title,
       status: 'pending' as const,
       progress: 0
-    })) || [];
+    }));
     setGenerationSteps(steps);
+    setCurrentStepIndex(0);
 
     try {
       // Generate each section in parallel
-      const scriptPartPromises = outline?.sections.map((section, sectionIndex) => {
+      const scriptPartPromises = outline.sections.map((section, sectionIndex) => {
         // Create a promise that updates progress for this section
         return new Promise<string>(async (resolve, reject) => {
           try {
@@ -549,41 +511,31 @@ export default function ScriptWriter() {
             
             // Get section-specific references
             // Distribute facts and news evenly across sections
-            const totalSections = outline?.sections.length || 1;
-            const sectionFacts = filteredReferences
+            const totalSections = outline.sections.length;
+            const sectionFacts = userReferences
               .filter(ref => ref.type === 'factoid' || ref.type === 'stat')
               .filter((_, index) => index % totalSections === sectionIndex);
             
-            const sectionNews = filteredReferences
+            const sectionNews = userReferences
               .filter(ref => ref.type === 'article')
               .filter((_, index) => index % totalSections === sectionIndex);
             
             // Combine section-specific references
             const sectionReferences = [...sectionFacts, ...sectionNews];
 
-            // Log the request payload for debugging
-            console.log('API request payload:', {
-              section,
-              selectedPoints: selectedPoints.filter(p => p.sectionIndex === sectionIndex),
-              duration: duration / totalSections,
-              memberCount,
-              trendsData,
-              userReferences: sectionReferences,
-            });
-
             // Generate the actual script part
             const response = await fetch('/api/script/generate', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                outline: { title: outline?.title || topic, sections: [section] },
+                outline: { title: outline.title, sections: [section] },
                 selectedPoints: selectedPoints.filter(p => p.sectionIndex === sectionIndex),
-                duration: duration / totalSections, // Duration per section
+                duration: duration / outline.sections.length, // Duration per section
                 memberCount, // Add memberCount to the API call
                 personalExperiences: selectedPoints
                   .filter(p => p.promptType === 'life_experience' && p.elaboration)
                   .map(p => p.elaboration || ''),
-                trendsData, // Pass trends data to the API
+                trendsData: trendsData, // Pass trends data to the API
                 userReferences: sectionReferences, // Include section-specific references
                 targetWordCount: {
                   min: Math.floor(minWordCount / totalSections),
@@ -592,11 +544,8 @@ export default function ScriptWriter() {
               }),
             });
 
-            // If response is not OK, attempt to get error message from response
             if (!response.ok) {
-              const errorText = await response.text();
-              console.error('API error response:', errorText);
-              throw new Error(`Failed to generate script section: ${errorText || response.statusText}`);
+              throw new Error('Failed to generate script section');
             }
 
             const data = await response.json();
@@ -610,14 +559,14 @@ export default function ScriptWriter() {
                 progress: i === sectionIndex ? 100 : step.progress
               }))
             );
+            setCurrentStepIndex(sectionIndex + 1);
 
-            resolve(data.script || "");
+            resolve(data.script);
           } catch (error) {
-            console.error('Error generating script part:', error);
             reject(error);
           }
         });
-      }) || [];
+      });
 
       // Wait for all sections to complete
       const scriptParts = await Promise.all(scriptPartPromises);
@@ -625,31 +574,25 @@ export default function ScriptWriter() {
       setScript(fullScript);
 
       // Get AI rating
-      try {
-        const ratingResponse = await fetch('/api/script/rate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            script: fullScript, 
-            duration,
-            memberCount,
-          }),
-        });
+      const ratingResponse = await fetch('/api/script/rate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          script: fullScript, 
+          duration,
+          memberCount, // Add memberCount to rating API call
+        }),
+      });
 
-        if (ratingResponse.ok) {
-          const ratingData = await ratingResponse.json();
-          setAiRating(ratingData);
-        }
-      } catch (ratingError) {
-        console.error('Error getting script rating:', ratingError);
-        // Continue even if rating fails
+      if (ratingResponse.ok) {
+        const ratingData = await ratingResponse.json();
+        setAiRating(ratingData);
       }
 
       // Move to last step
       setActiveStep(4);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate script');
-      console.error('Script generation error:', err);
     } finally {
       setLoading(false);
     }
@@ -802,20 +745,7 @@ export default function ScriptWriter() {
     }
   };
   
-  // Add a function to generate placeholder images when thumbnails aren't available
-  const getPlaceholderImage = (text: string, type: string = 'article') => {
-    // Generate a random but consistent hash based on text
-    const hash = Math.abs(text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 1000);
-    
-    // Use different placeholder services based on content type
-    if (type === 'article') {
-      return `https://source.unsplash.com/featured/300x200?${encodeURIComponent(topic)}&sig=${hash}`;
-    } else {
-      return `https://via.placeholder.com/300x200/4a90e2/ffffff?text=${encodeURIComponent(text.substring(0, 20))}`;
-    }
-  };
-
-  // Update the generateNewsSummaries function to include placeholder images
+  // Function to generate news summaries using OpenAI
   const generateNewsSummaries = async () => {
     if (topic.trim().length < 3) {
       setNewsError('Please enter a more specific topic');
@@ -852,7 +782,12 @@ export default function ScriptWriter() {
           return color;
         };
         
-        // Use our placeholder image function instead of the previous one
+        // Generate a random image URL for news
+        const getNewsImageUrl = (title: string) => {
+          const hash = Math.abs(title.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 1000);
+          return `https://source.unsplash.com/featured/600x400?${encodeURIComponent(topic)}&sig=${hash}`;
+        };
+        
         const newArticles = data.news.map((article: {title: string, content: string}) => ({
           id: `news-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           type: 'article' as const,
@@ -860,7 +795,7 @@ export default function ScriptWriter() {
           url: '',
           source: 'AI Generated',
           description: article.content,
-          thumbnail: getPlaceholderImage(article.title, 'article'),
+          thumbnail: getNewsImageUrl(article.title),
           color: getRandomColor()
         }));
         
@@ -875,180 +810,6 @@ export default function ScriptWriter() {
     } finally {
       setAiGeneratingNews(false);
     }
-  };
-
-  // Add state for confirmation dialog
-  const [generateConfirmOpen, setGenerateConfirmOpen] = useState(false);
-
-  // Add state for article preview
-  const [previewArticle, setPreviewArticle] = useState<UserReference | null>(null);
-
-  // Add a function to handle article preview
-  const handleArticlePreview = (event: React.MouseEvent, article: UserReference) => {
-    event.stopPropagation(); // Prevent toggling selection
-    setPreviewArticle(article);
-  };
-
-  // Add Article Preview Dialog component
-  const ArticlePreviewDialog = () => (
-    <Dialog
-      open={!!previewArticle}
-      onClose={() => setPreviewArticle(null)}
-      maxWidth="md"
-      fullWidth
-      sx={{ zIndex: 1400 }}
-    >
-      {previewArticle && (
-        <>
-          <DialogTitle sx={{ 
-            bgcolor: 'primary.main', 
-            color: 'white',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            pb: 2
-          }}>
-            <ArticleIcon />
-            {previewArticle.content}
-          </DialogTitle>
-          <DialogContent sx={{ p: 0 }}>
-            {previewArticle.thumbnail && (
-              <Box sx={{ width: '100%', height: 250, bgcolor: 'grey.100', position: 'relative' }}>
-                <Box
-                  component="img"
-                  src={previewArticle.thumbnail}
-                  alt={previewArticle.content}
-                  sx={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                  }}
-                />
-                <Box 
-                  sx={{ 
-                    position: 'absolute',
-                    bottom: 0,
-                    right: 0,
-                    px: 2,
-                    py: 0.5,
-                    bgcolor: 'rgba(0,0,0,0.6)',
-                    color: 'white',
-                    borderTopLeftRadius: 8
-                  }}
-                >
-                  <Typography variant="caption">
-                    Source: {previewArticle.source}
-                  </Typography>
-                </Box>
-              </Box>
-            )}
-            <Box sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                {previewArticle.content}
-              </Typography>
-              <Box sx={{ my: 2 }}>
-                <Chip 
-                  size="small" 
-                  label={previewArticle.source}
-                  color="primary"
-                  icon={<ArticleIcon />}
-                  sx={{ mr: 1 }}
-                />
-                <Chip 
-                  size="small" 
-                  label={new Date().toLocaleDateString()}
-                  color="default"
-                  variant="outlined"
-                />
-              </Box>
-              <Typography variant="body1" paragraph>
-                {previewArticle.description || 'No detailed description available for this article.'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                This article was found using AI-powered search to provide you with relevant and up-to-date content for your podcast.
-              </Typography>
-              <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
-                <Button
-                  startIcon={<CheckIcon />}
-                  onClick={() => {
-                    if (previewArticle && !selectedReferences.includes(previewArticle.id)) {
-                      toggleReferenceSelection(previewArticle.id);
-                    }
-                    setPreviewArticle(null);
-                  }}
-                  variant={selectedReferences.includes(previewArticle.id) ? "contained" : "outlined"}
-                  color="primary"
-                >
-                  {selectedReferences.includes(previewArticle.id) 
-                    ? "Selected for Podcast" 
-                    : "Include in Podcast"}
-                </Button>
-                {previewArticle.url && (
-                  <Button
-                    href={previewArticle.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    View Source
-                  </Button>
-                )}
-              </Box>
-            </Box>
-          </DialogContent>
-          <DialogActions sx={{ p: 2 }}>
-            <Button onClick={() => setPreviewArticle(null)} color="inherit">
-              Close
-            </Button>
-          </DialogActions>
-        </>
-      )}
-    </Dialog>
-  );
-
-  // Add state for prompt preview
-  const [promptPreview, setPromptPreview] = useState<string>('');
-  const [showPromptPreview, setShowPromptPreview] = useState(false);
-
-  // Add a function to generate the prompt preview
-  const generatePromptPreview = () => {
-    // Create a sample of what the prompt will include
-    const selectedArticles = userReferences
-      .filter(ref => ref.type === 'article' && selectedReferences.includes(ref.id))
-      .map(article => `- ${article.content}`).join('\n');
-    
-    const selectedFacts = userReferences
-      .filter(ref => (ref.type === 'factoid' || ref.type === 'stat') && selectedReferences.includes(ref.id))
-      .map(fact => `- ${fact.content} ${fact.source ? `[Source: ${fact.source}]` : ''}`).join('\n');
-    
-    const selectedContentPoints = selectedPoints
-      .map(point => `- ${point.text} ${point.elaboration ? `(Note: ${point.elaboration})` : ''}`).join('\n');
-
-    // Create the preview
-    const preview = `
-# Podcast Script Generation Prompt
-
-## Topic
-${topic}
-
-## Format
-- Duration: ${duration} minutes
-- Speakers: ${memberCount} ${memberCount > 1 ? 'people' : 'person'}
-
-## Selected News Articles
-${selectedArticles || 'No news articles selected'}
-
-## Selected Facts
-${selectedFacts || 'No facts selected'}
-
-## Content Points to Cover
-${selectedContentPoints || 'No content points selected'}
-
-## Instructions
-Please create a conversational podcast script that covers the topic and incorporates the selected news, facts, and content points. The script should be engaging, educational, and follow good podcasting practices with natural transitions between topics.
-`;
-
-    setPromptPreview(preview);
-    setShowPromptPreview(true);
   };
 
   return (
@@ -1483,7 +1244,7 @@ Please create a conversational podcast script that covers the topic and incorpor
                                         size="small"
                                         onClick={() => handleEditElaboration(selectedPoint!)}
                                       >
-                                        <PersonIcon />
+                                        <EditIcon />
                                       </IconButton>
                                     </Tooltip>
                                   </Box>
@@ -1501,9 +1262,8 @@ Please create a conversational podcast script that covers the topic and incorpor
                       onClick={handleGenerateScript}
                       disabled={loading}
                       fullWidth={isMobile}
-                      startIcon={<MicIcon />}
                     >
-                      Review & Generate Final Script
+                      Generate Script
                     </Button>
                   </Box>
                 </Box>
@@ -1639,24 +1399,24 @@ Please create a conversational podcast script that covers the topic and incorpor
                           <Box>
                             <Box sx={{ mb: 2 }}>
                               <Typography variant="subtitle2" gutterBottom>
-                                Overall Score: {aiRating && typeof aiRating.overall === 'number' ? aiRating.overall.toFixed(1) : '3.5'}/5
+                                Overall Score: {aiRating.overall.toFixed(1)}/5
                               </Typography>
                               <LinearProgress 
                                 variant="determinate" 
-                                value={aiRating && typeof aiRating.overall === 'number' ? (aiRating.overall / 5) * 100 : 70}
+                                value={(aiRating.overall / 5) * 100}
                                 sx={{ height: 8, borderRadius: 4 }}
                               />
                             </Box>
 
                             <Grid container spacing={1} sx={{ mb: 2 }}>
-                              {aiRating && aiRating.categories && Object.entries(aiRating.categories).map(([category, score]) => (
+                              {Object.entries(aiRating.categories).map(([category, score]) => (
                                 <Grid item xs={6} key={category}>
                                   <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
-                                    {category}: {typeof score === 'number' ? score.toFixed(1) : '3'}/5
+                                    {category}: {score}/5
                                   </Typography>
                                   <LinearProgress 
                                     variant="determinate" 
-                                    value={typeof score === 'number' ? (score / 5) * 100 : 60}
+                                    value={(score / 5) * 100}
                                     sx={{ height: 4, borderRadius: 2 }}
                                   />
                                 </Grid>
@@ -1668,46 +1428,28 @@ Please create a conversational podcast script that covers the topic and incorpor
                                 Strengths:
                               </Typography>
                               <List dense>
-                                {aiRating && aiRating.feedback && Array.isArray(aiRating.feedback.strengths) && aiRating.feedback.strengths.length > 0 ? (
-                                  aiRating.feedback.strengths.map((strength, index) => (
-                                    <ListItem key={index}>
-                                      <ListItemIcon sx={{ minWidth: 36 }}>
-                                        <CheckCircleIcon color="success" fontSize="small" />
-                                      </ListItemIcon>
-                                      <ListItemText primary={strength} />
-                                    </ListItem>
-                                  ))
-                                ) : (
-                                  <ListItem>
+                                {aiRating.feedback.strengths.map((strength, index) => (
+                                  <ListItem key={index}>
                                     <ListItemIcon sx={{ minWidth: 36 }}>
                                       <CheckCircleIcon color="success" fontSize="small" />
                                     </ListItemIcon>
-                                    <ListItemText primary="Good overall structure and flow" />
+                                    <ListItemText primary={strength} />
                                   </ListItem>
-                                )}
+                                ))}
                               </List>
 
                               <Typography variant="subtitle2" color="info.main" gutterBottom sx={{ mt: 1 }}>
                                 Suggested Improvements:
                               </Typography>
                               <List dense>
-                                {aiRating && aiRating.feedback && Array.isArray(aiRating.feedback.improvements) && aiRating.feedback.improvements.length > 0 ? (
-                                  aiRating.feedback.improvements.map((improvement, index) => (
-                                    <ListItem key={index}>
-                                      <ListItemIcon sx={{ minWidth: 36 }}>
-                                        <LightbulbIcon color="info" fontSize="small" />
-                                      </ListItemIcon>
-                                      <ListItemText primary={improvement} />
-                                    </ListItem>
-                                  ))
-                                ) : (
-                                  <ListItem>
+                                {aiRating.feedback.improvements.map((improvement, index) => (
+                                  <ListItem key={index}>
                                     <ListItemIcon sx={{ minWidth: 36 }}>
                                       <LightbulbIcon color="info" fontSize="small" />
                                     </ListItemIcon>
-                                    <ListItemText primary="Consider adding more personal anecdotes" />
+                                    <ListItemText primary={improvement} />
                                   </ListItem>
-                                )}
+                                ))}
                               </List>
                             </Box>
                           </Box>
@@ -1891,7 +1633,7 @@ Please create a conversational podcast script that covers the topic and incorpor
                                         size="small"
                                         onClick={() => handleEditElaboration(selectedPoint!)}
                                       >
-                                        <PersonIcon />
+                                        <EditIcon />
                                       </IconButton>
                                     </Tooltip>
                                   </Box>
@@ -1909,9 +1651,8 @@ Please create a conversational podcast script that covers the topic and incorpor
                       onClick={handleGenerateScript}
                       disabled={loading}
                       fullWidth={isMobile}
-                      startIcon={<MicIcon />}
                     >
-                      Review & Generate Final Script
+                      Generate Final Script
                     </Button>
                   </Box>
                 </Box>
@@ -2047,24 +1788,24 @@ Please create a conversational podcast script that covers the topic and incorpor
                           <Box>
                             <Box sx={{ mb: 2 }}>
                               <Typography variant="subtitle2" gutterBottom>
-                                Overall Score: {aiRating && typeof aiRating.overall === 'number' ? aiRating.overall.toFixed(1) : '3.5'}/5
+                                Overall Score: {aiRating.overall.toFixed(1)}/5
                               </Typography>
                               <LinearProgress 
                                 variant="determinate" 
-                                value={aiRating && typeof aiRating.overall === 'number' ? (aiRating.overall / 5) * 100 : 70}
+                                value={(aiRating.overall / 5) * 100}
                                 sx={{ height: 8, borderRadius: 4 }}
                               />
                             </Box>
 
                             <Grid container spacing={1} sx={{ mb: 2 }}>
-                              {aiRating && aiRating.categories && Object.entries(aiRating.categories).map(([category, score]) => (
+                              {Object.entries(aiRating.categories).map(([category, score]) => (
                                 <Grid item xs={6} key={category}>
                                   <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
-                                    {category}: {typeof score === 'number' ? score.toFixed(1) : '3'}/5
+                                    {category}: {score}/5
                                   </Typography>
                                   <LinearProgress 
                                     variant="determinate" 
-                                    value={typeof score === 'number' ? (score / 5) * 100 : 60}
+                                    value={(score / 5) * 100}
                                     sx={{ height: 4, borderRadius: 2 }}
                                   />
                                 </Grid>
@@ -2076,46 +1817,28 @@ Please create a conversational podcast script that covers the topic and incorpor
                                 Strengths:
                               </Typography>
                               <List dense>
-                                {aiRating && aiRating.feedback && Array.isArray(aiRating.feedback.strengths) && aiRating.feedback.strengths.length > 0 ? (
-                                  aiRating.feedback.strengths.map((strength, index) => (
-                                    <ListItem key={index}>
-                                      <ListItemIcon sx={{ minWidth: 36 }}>
-                                        <CheckCircleIcon color="success" fontSize="small" />
-                                      </ListItemIcon>
-                                      <ListItemText primary={strength} />
-                                    </ListItem>
-                                  ))
-                                ) : (
-                                  <ListItem>
+                                {aiRating.feedback.strengths.map((strength, index) => (
+                                  <ListItem key={index}>
                                     <ListItemIcon sx={{ minWidth: 36 }}>
                                       <CheckCircleIcon color="success" fontSize="small" />
                                     </ListItemIcon>
-                                    <ListItemText primary="Good overall structure and flow" />
+                                    <ListItemText primary={strength} />
                                   </ListItem>
-                                )}
+                                ))}
                               </List>
 
                               <Typography variant="subtitle2" color="info.main" gutterBottom sx={{ mt: 1 }}>
                                 Suggested Improvements:
                               </Typography>
                               <List dense>
-                                {aiRating && aiRating.feedback && Array.isArray(aiRating.feedback.improvements) && aiRating.feedback.improvements.length > 0 ? (
-                                  aiRating.feedback.improvements.map((improvement, index) => (
-                                    <ListItem key={index}>
-                                      <ListItemIcon sx={{ minWidth: 36 }}>
-                                        <LightbulbIcon color="info" fontSize="small" />
-                                      </ListItemIcon>
-                                      <ListItemText primary={improvement} />
-                                    </ListItem>
-                                  ))
-                                ) : (
-                                  <ListItem>
+                                {aiRating.feedback.improvements.map((improvement, index) => (
+                                  <ListItem key={index}>
                                     <ListItemIcon sx={{ minWidth: 36 }}>
                                       <LightbulbIcon color="info" fontSize="small" />
                                     </ListItemIcon>
-                                    <ListItemText primary="Consider adding more personal anecdotes" />
+                                    <ListItemText primary={improvement} />
                                   </ListItem>
-                                )}
+                                ))}
                               </List>
                             </Box>
                           </Box>
@@ -2137,7 +1860,7 @@ Please create a conversational podcast script that covers the topic and incorpor
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  bgcolor: 'rgba(0, 0, 0, 0.85)',
+                  bgcolor: 'rgba(0, 0, 0, 0.7)',
                   zIndex: 1000,
                   display: 'flex',
                   alignItems: 'center',
@@ -2145,446 +1868,207 @@ Please create a conversational podcast script that covers the topic and incorpor
                   p: { xs: 2, sm: 4 }
                 }}>
                   <Paper sx={{ 
-                    p: { xs: 2, sm: 3 }, 
-                    maxWidth: 950, 
+                    p: { xs: 2, sm: 4 }, 
+                    maxWidth: 600, 
                     width: '100%',
-                    maxHeight: '90vh',
                     bgcolor: 'background.paper',
-                    borderRadius: 3,
-                    boxShadow: 24,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    overflow: 'hidden'
+                    borderRadius: 2,
+                    boxShadow: 24
                   }}>
                     <Box sx={{ 
                       display: 'flex', 
                       justifyContent: 'center', 
-                      mb: { xs: 1, sm: 1.5 },
-                      position: 'relative',
-                      height: 120
+                      mb: { xs: 2, sm: 3 }
                     }}>
-                      {/* Animated person reading animation */}
                       <motion.div
-                        style={{ 
-                          position: 'absolute',
-                          width: '100%',
-                          maxWidth: 300,
-                          height: 120,
-                          display: 'flex',
-                          justifyContent: 'center',
-                          alignItems: 'center'
+                        animate={{
+                          y: [0, -10, 0],
+                          rotate: [-5, 5, -5]
+                        }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "easeInOut"
                         }}
                       >
-                        <Box sx={{ 
-                          position: 'relative', 
-                          width: 100, 
-                          height: 100,
-                          bgcolor: 'primary.light',
-                          borderRadius: '50%',
-                          display: 'flex',
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          boxShadow: 3
-                        }}>
-                          <PersonIcon sx={{ fontSize: 60, color: 'white' }} />
-                          
-                          {/* Circular orbit for the book */}
-                          <Box sx={{ 
-                            position: 'absolute',
-                            width: 150,
-                            height: 150,
-                            borderRadius: '50%',
-                            border: '1px dashed rgba(255,255,255,0.2)',
-                            animation: 'spin 8s linear infinite',
-                            '@keyframes spin': {
-                              '0%': { transform: 'rotate(0deg)' },
-                              '100%': { transform: 'rotate(360deg)' }
-                            }
-                          }}>
-                            {/* Orbiting book */}
-                            <motion.div
-                              animate={{
-                                rotate: 0,
-                                scale: [1, 1.1, 1]
-                              }}
-                              transition={{
-                                duration: 4,
-                                repeat: Infinity,
-                                repeatType: 'reverse'
-                              }}
-                              style={{
-                                position: 'absolute',
-                                top: -18,
-                                left: 65,
-                                background: theme.palette.secondary.main,
-                                width: 36,
-                                height: 36,
-                                borderRadius: '50%',
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
-                              }}
-                            >
-                              <MenuBookIcon sx={{ fontSize: 20, color: 'white' }} />
-                            </motion.div>
-                          </Box>
-
-                          {/* Microphone to represent podcast */}
-                          <motion.div
-                            animate={{
-                              y: [0, -5, 0],
-                              scale: [1, 1.05, 1]
-                            }}
-                            transition={{
-                              duration: 2,
-                              repeat: Infinity
-                            }}
-                            style={{
-                              position: 'absolute',
-                              bottom: -15,
-                              left: 50,
-                              transform: 'translateX(-50%)',
-                              background: theme.palette.primary.main,
-                              width: 30,
-                              height: 30,
-                              borderRadius: '50%',
-                              display: 'flex',
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                              boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
-                            }}
-                          >
-                            <MicIcon sx={{ fontSize: 18, color: 'white' }} />
-                          </motion.div>
-                        </Box>
+                        <MicIcon sx={{ 
+                          fontSize: { xs: 36, sm: 48 }, 
+                          color: 'primary.main' 
+                        }} />
                       </motion.div>
                     </Box>
 
                     <Typography 
-                      variant="h5" 
+                      variant="h6" 
                       gutterBottom 
                       align="center"
                       sx={{ 
-                        fontSize: { xs: '1.25rem', sm: '1.5rem' },
-                        fontWeight: 600,
-                        mb: 2
+                        fontSize: { xs: '1rem', sm: '1.25rem' }
                       }}
                     >
                       Generating Your {memberCount > 1 ? `${memberCount}-Person ` : ''}Podcast Script
                     </Typography>
 
-                    <Tabs 
-                      value={tabValue} 
-                      onChange={handleTabChange} 
-                      variant="fullWidth" 
+                    <Box sx={{ mt: { xs: 2, sm: 3 } }}>
+                      <AnimatePresence>
+                        {generationSteps.map((step) => (
+                          <motion.div
+                            key={step.title}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            <Box sx={{ mb: { xs: 1.5, sm: 2 } }}>
+                              <Box sx={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                mb: 1,
+                                flexWrap: 'wrap',
+                                gap: 1
+                              }}>
+                                <Typography 
+                                  variant="body1"
+                                  sx={{ 
+                                    flex: 1,
+                                    fontSize: { xs: '0.875rem', sm: '1rem' },
+                                    color: step.status === 'completed' 
+                                      ? 'success.main' 
+                                      : step.status === 'active' 
+                                      ? 'primary.main' 
+                                      : 'text.secondary'
+                                  }}
+                                >
+                                  {step.title}
+                                </Typography>
+                                <Typography 
+                                  variant="body2" 
+                                  color="text.secondary"
+                                  sx={{ 
+                                    ml: { xs: 0, sm: 2 },
+                                    fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                                  }}
+                                >
+                                  {step.progress}%
+                                </Typography>
+                              </Box>
+                              <Box 
+                                component={motion.div}
+                                sx={{ 
+                                  height: { xs: 4, sm: 6 }, 
+                                  bgcolor: 'background.default',
+                                  borderRadius: 3,
+                                  overflow: 'hidden'
+                                }}
+                              >
+                                <Box
+                                  component={motion.div}
+                                  animate={{ 
+                                    width: `${step.progress}%`,
+                                    backgroundColor: step.status === 'completed' 
+                                      ? '#4caf50' 
+                                      : step.status === 'active' 
+                                      ? '#2196f3' 
+                                      : '#9e9e9e'
+                                  }}
+                                  initial={{ width: 0 }}
+                                  transition={{ duration: 0.5 }}
+                                  sx={{ 
+                                    height: '100%',
+                                    borderRadius: 3
+                                  }}
+                                />
+                              </Box>
+                            </Box>
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    </Box>
+
+                    <Typography 
+                      variant="body2" 
+                      color="text.secondary" 
+                      align="center"
                       sx={{ 
-                        mb: 1,
-                        borderBottom: 1,
-                        borderColor: 'divider'
+                        mt: { xs: 2, sm: 3 },
+                        fontSize: { xs: '0.75rem', sm: '0.875rem' }
                       }}
                     >
-                      <Tab 
-                        label="Script Progress" 
-                        icon={<AssignmentIcon />} 
-                        iconPosition="start"
-                      />
-                      <Tab 
-                        label="News Articles" 
-                        icon={<ArticleIcon />} 
-                        iconPosition="start"
-                        sx={{ color: userReferences.filter(ref => ref.type === 'article').length > 0 ? 'primary.main' : 'inherit' }}
-                      />
-                      <Tab 
-                        label="Amazing Facts" 
-                        icon={<BoltIcon />} 
-                        iconPosition="start"
-                        sx={{ color: userReferences.filter(ref => ref.type === 'factoid').length > 0 ? 'secondary.main' : 'inherit' }}
-                      />
-                    </Tabs>
-
-                    <Box sx={{ 
-                      flexGrow: 1, 
-                      overflow: 'hidden',
-                      display: 'flex',
-                      minHeight: '350px',
-                      maxHeight: '50vh'
-                    }}>
-                      <TabPanel value={tabValue} index={0}>
-                        <Box sx={{ px: 1, height: '100%', overflow: 'auto' }}>
-                          <Typography variant="body1" fontWeight={500} gutterBottom sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
-                            Finalizing your script...
-                          </Typography>
-                          
-                          <Box sx={{ overflow: 'auto', pr: 1 }}>
-                            <AnimatePresence>
-                              {generationSteps.map((step) => (
-                                <motion.div
-                                  key={step.title}
-                                  initial={{ opacity: 0, y: 20 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  exit={{ opacity: 0, y: -20 }}
-                                  transition={{ duration: 0.3 }}
-                                >
-                                  <Box sx={{ mb: { xs: 1.5, sm: 2 } }}>
-                                    <Box sx={{ 
-                                      display: 'flex', 
-                                      alignItems: 'center', 
-                                      mb: 1,
-                                      flexWrap: 'wrap',
-                                      gap: 1
-                                    }}>
-                                      <Typography 
-                                        variant="body1"
-                                        sx={{ 
-                                          flex: 1,
-                                          fontSize: { xs: '0.875rem', sm: '1rem' },
-                                          color: step.status === 'completed' 
-                                            ? 'success.main' 
-                                            : step.status === 'active' 
-                                            ? 'primary.main' 
-                                            : 'text.secondary'
-                                        }}
-                                      >
-                                        {step.title}
-                                      </Typography>
-                                      <Typography 
-                                        variant="body2" 
-                                        color="text.secondary"
-                                        sx={{ 
-                                          ml: { xs: 0, sm: 2 },
-                                          fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                                        }}
-                                      >
-                                        {step.progress}%
-                                      </Typography>
-                                    </Box>
-                                    <Box 
-                                      component={motion.div}
-                                      sx={{ 
-                                        height: { xs: 4, sm: 6 }, 
-                                        bgcolor: 'background.default',
-                                        borderRadius: 3,
-                                        overflow: 'hidden'
-                                      }}
-                                    >
-                                      <Box
-                                        component={motion.div}
-                                        animate={{ 
-                                          width: `${step.progress}%`,
-                                          backgroundColor: step.status === 'completed' 
-                                            ? '#4caf50' 
-                                            : step.status === 'active' 
-                                            ? '#2196f3' 
-                                            : '#9e9e9e'
-                                        }}
-                                        initial={{ width: 0 }}
-                                        transition={{ duration: 0.5 }}
-                                        sx={{ 
-                                          height: '100%',
-                                          borderRadius: 3
-                                        }}
-                                      />
-                                    </Box>
-                                  </Box>
-                                </motion.div>
-                              ))}
-                            </AnimatePresence>
-                          </Box>
-                        </Box>
-                      </TabPanel>
-
-                      <TabPanel value={tabValue} index={1}>
-                        <Box sx={{ height: '100%', overflow: 'auto' }}>
-                          <Typography variant="body1" color="primary" fontWeight={500} sx={{ mb: 2, pb: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-                            News Articles Found ({userReferences.filter(ref => ref.type === 'article').length})
-                          </Typography>
-                          
-                          <Grid container spacing={2}>
-                            {userReferences
-                              .filter(ref => ref.type === 'article')
-                              .map((article) => (
-                                <Grid item xs={12} md={6} key={article.id}>
-                                  <Card 
-                                    elevation={3}
-                                    sx={{ 
-                                      display: 'flex',
-                                      height: '100%',
-                                      transition: 'all 0.2s',
-                                      '&:hover': {
-                                        transform: 'translateY(-4px)',
-                                        boxShadow: 6
-                                      }
-                                    }}
-                                  >
-                                    {article.thumbnail && (
-                                      <CardMedia
-                                        component="img"
-                                        sx={{ width: 120, height: 'auto', objectFit: 'cover' }}
-                                        image={article.thumbnail}
-                                        alt={article.content}
-                                      />
-                                    )}
-                                    <Box sx={{ display: 'flex', flexDirection: 'column', flex: '1 0 auto' }}>
-                                      <CardContent sx={{ flex: '1 0 auto', py: 1.5 }}>
-                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                          <Typography variant="subtitle1" component="div" fontWeight={500} sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
-                                            {article.content}
-                                          </Typography>
-                                          <IconButton 
-                                            size="small" 
-                                            onClick={(e) => handleArticlePreview(e, article)}
-                                            sx={{ 
-                                              bgcolor: 'action.hover',
-                                              ml: 1,
-                                              '&:hover': { bgcolor: 'primary.light', color: 'white' }
-                                            }}
-                                          >
-                                            <ArticleIcon fontSize="small" />
-                                          </IconButton>
-                                        </Box>
-                                        {article.description && (
-                                          <Typography variant="body2" color="text.secondary" sx={{
-                                            mt: 0.5,
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            display: '-webkit-box',
-                                            WebkitLineClamp: 2,
-                                            WebkitBoxOrient: 'vertical',
-                                            fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                                          }}>
-                                            {article.description}
-                                          </Typography>
-                                        )}
-                                        <Chip 
-                                          size="small" 
-                                          label={article.source}
-                                          sx={{ mt: 1, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
-                                          color={selectedReferences.includes(article.id) ? "primary" : "default"}
-                                          variant={selectedReferences.includes(article.id) ? "filled" : "outlined"}
-                                        />
-                                      </CardContent>
-                                    </Box>
-                                  </Card>
-                                </Grid>
-                              ))}
-                          </Grid>
-                          
-                          {userReferences.filter(ref => ref.type === 'article').length === 0 && (
-                            <Box sx={{ textAlign: 'center', py: 4 }}>
-                              <ArticleIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
-                              <Typography color="text.secondary">
-                                Searching for relevant news articles...
-                              </Typography>
-                            </Box>
-                          )}
-                        </Box>
-                      </TabPanel>
-
-                      <TabPanel value={tabValue} index={2}>
-                        <Box sx={{ height: '100%', overflow: 'auto' }}>
-                          <Typography variant="body1" color="secondary" fontWeight={500} sx={{ mb: 2, pb: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-                            Amazing Facts Discovered ({userReferences.filter(ref => ref.type === 'factoid' || ref.type === 'stat').length})
-                          </Typography>
-                          
-                          <Stack spacing={2}>
-                            {userReferences
-                              .filter(ref => ref.type === 'factoid' || ref.type === 'stat')
-                              .map((fact) => {
-                                const isSelected = selectedReferences.includes(fact.id);
-                                return (
-                                  <Paper
-                                    key={fact.id}
-                                    elevation={3}
-                                    sx={{
-                                      p: 2,
-                                      borderRadius: 2,
-                                      position: 'relative',
-                                      overflow: 'hidden',
-                                      border: isSelected ? 2 : 0,
-                                      borderColor: 'secondary.main',
-                                      borderLeft: `6px solid ${fact.color || 'secondary.main'}`,
-                                      transition: 'all 0.2s',
-                                      cursor: 'pointer',
-                                      '&:hover': {
-                                        transform: 'translateY(-2px)',
-                                        boxShadow: 6
-                                      }
-                                    }}
-                                    onClick={() => toggleReferenceSelection(fact.id)}
-                                  >
-                                    {isSelected && (
-                                      <Checkbox
-                                        checked
-                                        sx={{ 
-                                          position: 'absolute', 
-                                          top: 5, 
-                                          right: 5, 
-                                          zIndex: 1,
-                                          color: 'secondary.main',
-                                          bgcolor: 'rgba(255,255,255,0.8)',
-                                          borderRadius: '50%'
-                                        }}
-                                      />
-                                    )}
-                                    <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                                      <Avatar
-                                        sx={{
-                                          bgcolor: fact.color || 'secondary.main',
-                                          mr: 2,
-                                          width: { xs: 32, sm: 40 },
-                                          height: { xs: 32, sm: 40 }
-                                        }}
-                                      >
-                                        {fact.type === 'factoid' ? <BoltIcon sx={{ fontSize: { xs: 16, sm: 24 } }} /> : <PsychologyIcon sx={{ fontSize: { xs: 16, sm: 24 } }} />}
-                                      </Avatar>
-                                      <Box sx={{ flex: 1 }}>
-                                        <Typography variant="body1" sx={{ fontWeight: 500, fontSize: { xs: '0.875rem', sm: '1rem' } }}>
-                                          {fact.content}
-                                        </Typography>
-                                        {fact.source && (
-                                          <Chip 
-                                            variant="outlined"
-                                            size="small"
-                                            icon={<ArticleIcon sx={{ fontSize: '0.7rem' }} />}
-                                            label={`Source: ${fact.source}`}
-                                            color="secondary"
-                                            sx={{ mt: 1, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
-                                          />
-                                        )}
-                                      </Box>
-                                    </Box>
-                                  </Paper>
-                                );
-                              })}
-                          </Stack>
-                          
-                          {userReferences.filter(ref => ref.type === 'factoid' || ref.type === 'stat').length === 0 && (
-                            <Box sx={{ textAlign: 'center', py: 4 }}>
-                              <LightbulbIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
-                              <Typography color="text.secondary">
-                                Discovering amazing facts about this topic...
-                              </Typography>
-                            </Box>
-                          )}
-                        </Box>
-                      </TabPanel>
-                    </Box>
-                    
-                    <Box sx={{ 
-                      display: 'flex', 
-                      justifyContent: 'center', 
-                      pt: 2, 
-                      borderTop: '1px solid', 
-                      borderColor: 'divider',
-                      mt: 2
-                    }}>
-                      <CircularProgress size={24} sx={{ mr: 2 }} />
-                      <Typography variant="body2" color="text.secondary">
-                        Weaving everything together to create your perfect podcast script...
-                      </Typography>
-                    </Box>
+                      {currentStepIndex === generationSteps.length 
+                        ? 'Finalizing your script...'
+                        : `Generating section ${currentStepIndex + 1} of ${generationSteps.length}`
+                      }
+                    </Typography>
                   </Paper>
+                </Box>
+              )}
+
+              {/* News Articles */}
+              {topic.trim().length >= 3 && (
+                <Box sx={{ mt: 4 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6">
+                      <ArticleIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
+                      Latest News on &quot;{topic}&quot;
+                    </Typography>
+                    
+                    <Tooltip title="Refresh news">
+                      <IconButton 
+                        size="small" 
+                        onClick={() => {
+                          setNewsArticles([]);
+                          setFeatureProgress(prev => Math.max(40, prev - 20));
+                          // Re-trigger the useEffect
+                          const newTopic = topic + ' ';
+                          setTopic(newTopic.trim());
+                        }}
+                        disabled={newsLoading}
+                      >
+                        <RefreshIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                  
+                  {newsLoading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                      <CircularProgress />
+                    </Box>
+                  ) : newsError ? (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                      {newsError}
+                    </Alert>
+                  ) : newsArticles.length === 0 ? (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      No news articles found for this topic.
+                    </Alert>
+                  ) : (
+                    <Box sx={{ maxHeight: 300, overflow: 'auto', border: '1px solid #eee', borderRadius: 2, p: 2 }}>
+                      <Grid container spacing={2}>
+                        {newsArticles.slice(0, 6).map((article, index) => (
+                          <Grid item xs={12} sm={6} key={index}>
+                            <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                              <CardContent sx={{ flex: '1 0 auto', pb: 1 }}>
+                                <Typography variant="subtitle1" gutterBottom noWrap>
+                                  {article.title}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ mb: 1, display: '-webkit-box', overflow: 'hidden', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2 }}>
+                                  {article.description || 'No description available'}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" display="block">
+                                  {article.source.name} • {new Date(article.publishedAt).toLocaleDateString()}
+                                </Typography>
+                              </CardContent>
+                              <Box sx={{ p: 1, pt: 0 }}>
+                                <Link href={article.url} target="_blank" rel="noopener" underline="none">
+                                  <Button size="small" fullWidth>Read More</Button>
+                                </Link>
+                              </Box>
+                            </Card>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    </Box>
+                  )}
                 </Box>
               )}
             </CardContent>
@@ -2630,7 +2114,7 @@ Please create a conversational podcast script that covers the topic and incorpor
         
         <DialogContent sx={{ p: 3 }}>
           <Typography variant="body2" color="text.secondary" paragraph sx={{ mt: 1 }}>
-            Select news articles and references that will be used to create your podcast script. News articles are optional.
+            Select news articles and references that will be used to create your podcast script. You must select at least one.
           </Typography>
           
           <Box sx={{ mb: 3 }}>
@@ -3012,705 +2496,6 @@ Please create a conversational podcast script that covers the topic and incorpor
             variant="contained"
           >
             Continue to Content Selection
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Confirmation Dialog */}
-      <Dialog
-        open={generateConfirmOpen}
-        onClose={() => setGenerateConfirmOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle sx={{ 
-          bgcolor: 'primary.main', 
-          color: 'white',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1
-        }}>
-          <MicIcon />
-          Ready to Generate Your Podcast Script
-        </DialogTitle>
-        <DialogContent sx={{ mt: 2, p: 3 }}>
-          <Typography variant="body1" paragraph>
-            You&apos;re about to generate a {memberCount > 1 ? `${memberCount}-person ` : ''}podcast script about <b>{topic}</b> with a duration of <b>{duration} minutes</b>.
-          </Typography>
-          
-          <Typography variant="body1" paragraph>
-            Your script will include:
-          </Typography>
-          
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12} sm={6}>
-              <Paper sx={{ p: 2, bgcolor: 'primary.light', color: 'white', height: '100%' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <ArticleIcon sx={{ mr: 1 }} />
-                  <Typography variant="subtitle1" fontWeight={500}>
-                    News Articles
-                  </Typography>
-                </Box>
-                <Typography variant="body2">
-                  {userReferences.filter(ref => ref.type === 'article').length} articles selected
-                </Typography>
-              </Paper>
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <Paper sx={{ p: 2, bgcolor: 'secondary.light', color: 'white', height: '100%' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <LightbulbIcon sx={{ mr: 1 }} />
-                  <Typography variant="subtitle1" fontWeight={500}>
-                    Amazing Facts
-                  </Typography>
-                </Box>
-                <Typography variant="body2">
-                  {userReferences.filter(ref => ref.type === 'factoid' || ref.type === 'stat').length} facts discovered
-                </Typography>
-              </Paper>
-            </Grid>
-            
-            <Grid item xs={12}>
-              <Paper sx={{ p: 2, bgcolor: 'info.light', color: 'white' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <CheckIcon sx={{ mr: 1 }} />
-                  <Typography variant="subtitle1" fontWeight={500}>
-                    Content Points
-                  </Typography>
-                </Box>
-                <Typography variant="body2">
-                  {selectedPoints.length} points selected out of {outline?.sections.reduce((acc, section) => acc + section.points.length, 0) || 0} available
-                </Typography>
-              </Paper>
-            </Grid>
-          </Grid>
-          
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 3 }}>
-            This process may take a few minutes. You&apos;ll be able to see real-time progress, news articles, and facts being discovered during generation.
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setGenerateConfirmOpen(false)} color="inherit">
-            Cancel
-          </Button>
-          <Button 
-            onClick={proceedWithScriptGeneration} 
-            variant="contained" 
-            startIcon={<MicIcon />}
-          >
-            Generate Podcast Script
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Content Selection UI */}
-      {contentSelectionOpen && (
-        <Box sx={{ 
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          bgcolor: 'rgba(0, 0, 0, 0.85)',
-          zIndex: 1000,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          p: { xs: 2, sm: 4 }
-        }}>
-          <Paper sx={{ 
-            p: { xs: 2, sm: 3 }, 
-            maxWidth: 950, 
-            width: '100%',
-            maxHeight: '90vh',
-            bgcolor: 'background.paper',
-            borderRadius: 3,
-            boxShadow: 24,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden'
-          }}>
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              mb: { xs: 1, sm: 1.5 },
-              position: 'relative',
-              height: { xs: 80, sm: 120 }
-            }}>
-              {/* Animated person reading animation */}
-              <motion.div
-                style={{ 
-                  position: 'absolute',
-                  width: '100%',
-                  maxWidth: 300,
-                  height: '100%',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center'
-                }}
-              >
-                <Box sx={{ 
-                  position: 'relative', 
-                  width: { xs: 80, sm: 100 }, 
-                  height: { xs: 80, sm: 100 },
-                  bgcolor: 'primary.light',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  boxShadow: 3
-                }}>
-                  <PersonIcon sx={{ fontSize: { xs: 40, sm: 60 }, color: 'white' }} />
-                  
-                  {/* Circular orbit for the book */}
-                  <Box sx={{ 
-                    position: 'absolute',
-                    width: { xs: 120, sm: 150 },
-                    height: { xs: 120, sm: 150 },
-                    borderRadius: '50%',
-                    border: '1px dashed rgba(255,255,255,0.2)',
-                    animation: 'spin 8s linear infinite',
-                    '@keyframes spin': {
-                      '0%': { transform: 'rotate(0deg)' },
-                      '100%': { transform: 'rotate(360deg)' }
-                    }
-                  }}>
-                    {/* Orbiting book */}
-                    <motion.div
-                      animate={{
-                        rotate: 0,
-                        scale: [1, 1.1, 1]
-                      }}
-                      transition={{
-                        duration: 4,
-                        repeat: Infinity,
-                        repeatType: 'reverse'
-                      }}
-                      style={{
-                        position: 'absolute',
-                        top: -18,
-                        left: 65,
-                        background: theme.palette.secondary.main,
-                        width: 36,
-                        height: 36,
-                        borderRadius: '50%',
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
-                      }}
-                    >
-                      <MenuBookIcon sx={{ fontSize: 20, color: 'white' }} />
-                    </motion.div>
-                  </Box>
-
-                  {/* Microphone to represent podcast */}
-                  <motion.div
-                    animate={{
-                      y: [0, -5, 0],
-                      scale: [1, 1.05, 1]
-                    }}
-                    transition={{
-                      duration: 2,
-                      repeat: Infinity
-                    }}
-                    style={{
-                      position: 'absolute',
-                      bottom: -15,
-                      left: 50,
-                      transform: 'translateX(-50%)',
-                      background: theme.palette.primary.main,
-                      width: 30,
-                      height: 30,
-                      borderRadius: '50%',
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
-                    }}
-                  >
-                    <MicIcon sx={{ fontSize: 18, color: 'white' }} />
-                  </motion.div>
-                </Box>
-              </motion.div>
-            </Box>
-
-            <Typography 
-              variant="h5" 
-              gutterBottom 
-              align="center"
-              sx={{ 
-                fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' },
-                fontWeight: 600,
-                mb: { xs: 1, sm: 2 }
-              }}
-            >
-              Select Content for Your {memberCount > 1 ? `${memberCount}-Person ` : ''}Podcast Script
-            </Typography>
-            
-            <Typography 
-              variant="body1"
-              color="text.secondary"
-              align="center"
-              sx={{ mb: { xs: 1, sm: 2 }, px: 2 }}
-            >
-              Choose the news articles and facts you want to include in your podcast script
-            </Typography>
-
-            <Tabs 
-              value={tabValue} 
-              onChange={handleTabChange} 
-              variant="fullWidth" 
-              sx={{ 
-                mb: 1,
-                borderBottom: 1,
-                borderColor: 'divider'
-              }}
-            >
-              <Tab 
-                label="News Articles" 
-                icon={<ArticleIcon />} 
-                iconPosition="start"
-                sx={{ 
-                  color: userReferences.filter(ref => ref.type === 'article').length > 0 ? 'primary.main' : 'inherit',
-                  fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                }}
-              />
-              <Tab 
-                label="Amazing Facts" 
-                icon={<BoltIcon />} 
-                iconPosition="start"
-                sx={{ 
-                  color: userReferences.filter(ref => ref.type === 'factoid').length > 0 ? 'secondary.main' : 'inherit',
-                  fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                }}
-              />
-            </Tabs>
-
-            <Box sx={{ 
-              flexGrow: 1, 
-              overflow: 'hidden',
-              display: 'flex',
-              minHeight: { xs: '250px', sm: '350px' },
-              maxHeight: { xs: '40vh', sm: '50vh' }
-            }}>
-              <TabPanel value={tabValue} index={0}>
-                <Box sx={{ height: '100%', overflow: 'auto' }}>
-                  <Box sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center', 
-                    mb: 2, 
-                    pb: 1, 
-                    borderBottom: '1px solid', 
-                    borderColor: 'divider',
-                    flexWrap: { xs: 'wrap', sm: 'nowrap' },
-                    gap: { xs: 1, sm: 0 }
-                  }}>
-                    <Typography variant="body1" color="primary" fontWeight={500} sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
-                      News Articles Found ({userReferences.filter(ref => ref.type === 'article').length})
-                    </Typography>
-                    
-                    <Button 
-                      size="small" 
-                      startIcon={aiGeneratingNews ? <CircularProgress size={16} /> : <RefreshIcon />}
-                      onClick={generateNewsSummaries}
-                      disabled={aiGeneratingNews}
-                      sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
-                    >
-                      {aiGeneratingNews ? 'Generating...' : 'Find More News'}
-                    </Button>
-                  </Box>
-                  
-                  <Grid container spacing={2}>
-                    {userReferences
-                      .filter(ref => ref.type === 'article')
-                      .map((article) => {
-                        const isSelected = selectedReferences.includes(article.id);
-                        return (
-                          <Grid item xs={12} sm={6} md={6} key={article.id}>
-                            <Card 
-                              elevation={3}
-                              sx={{ 
-                                display: 'flex',
-                                height: '100%',
-                                transition: 'all 0.2s',
-                                border: isSelected ? 2 : 0,
-                                borderColor: 'primary.main',
-                                position: 'relative',
-                                '&:hover': {
-                                  transform: 'translateY(-4px)',
-                                  boxShadow: 6
-                                }
-                              }}
-                              onClick={() => toggleReferenceSelection(article.id)}
-                            >
-                              {isSelected && (
-                                <Checkbox
-                                  checked
-                                  sx={{ 
-                                    position: 'absolute', 
-                                    top: 5, 
-                                    right: 5, 
-                                    zIndex: 1,
-                                    color: 'primary.main',
-                                    bgcolor: 'rgba(255,255,255,0.8)',
-                                    borderRadius: '50%'
-                                  }}
-                                />
-                              )}
-                              {article.thumbnail ? (
-                                <CardMedia
-                                  component="img"
-                                  sx={{ width: { xs: 80, sm: 120 }, height: 'auto', objectFit: 'cover' }}
-                                  image={article.thumbnail}
-                                  alt={article.content}
-                                />
-                              ) : (
-                                <Box sx={{ 
-                                  width: { xs: 80, sm: 120 }, 
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  justifyContent: 'center',
-                                  bgcolor: 'primary.light',
-                                  color: 'white'
-                                }}>
-                                  <ArticleIcon sx={{ fontSize: { xs: 32, sm: 48 } }} />
-                                </Box>
-                              )}
-                              <Box sx={{ display: 'flex', flexDirection: 'column', flex: '1 0 auto' }}>
-                                <CardContent sx={{ flex: '1 0 auto', py: 1.5 }}>
-                                  <Typography variant="subtitle1" component="div" fontWeight={500} sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
-                                    {article.content}
-                                  </Typography>
-                                  {article.description && (
-                                    <Typography variant="body2" color="text.secondary" sx={{
-                                      mt: 0.5,
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      display: '-webkit-box',
-                                      WebkitLineClamp: 2,
-                                      WebkitBoxOrient: 'vertical',
-                                      fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                                    }}>
-                                      {article.description}
-                                    </Typography>
-                                  )}
-                                  <Chip 
-                                    size="small" 
-                                    label={article.source}
-                                    sx={{ mt: 1, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
-                                    color={isSelected ? "primary" : "default"}
-                                    variant={isSelected ? "filled" : "outlined"}
-                                  />
-                                </CardContent>
-                              </Box>
-                            </Card>
-                          </Grid>
-                        );
-                      })}
-                  </Grid>
-                  
-                  {userReferences.filter(ref => ref.type === 'article').length === 0 && (
-                    <Box sx={{ textAlign: 'center', py: 4 }}>
-                      {aiGeneratingNews ? (
-                        <>
-                          <CircularProgress sx={{ mb: 2 }} />
-                          <Typography color="text.secondary">
-                            Searching for relevant news articles...
-                          </Typography>
-                        </>
-                      ) : (
-                        <>
-                          <ArticleIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
-                          <Typography color="text.secondary">
-                            No news articles found. Try generating more news.
-                          </Typography>
-                        </>
-                      )}
-                    </Box>
-                  )}
-                </Box>
-              </TabPanel>
-
-              <TabPanel value={tabValue} index={1}>
-                <Box sx={{ height: '100%', overflow: 'auto' }}>
-                  <Box sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center', 
-                    mb: 2, 
-                    pb: 1, 
-                    borderBottom: '1px solid', 
-                    borderColor: 'divider',
-                    flexWrap: { xs: 'wrap', sm: 'nowrap' },
-                    gap: { xs: 1, sm: 0 }
-                  }}>
-                    <Typography variant="body1" color="secondary" fontWeight={500} sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
-                      Amazing Facts Discovered ({userReferences.filter(ref => ref.type === 'factoid' || ref.type === 'stat').length})
-                    </Typography>
-                    
-                    <Button 
-                      size="small" 
-                      startIcon={aiGeneratingFacts ? <CircularProgress size={16} /> : <LightbulbIcon />}
-                      onClick={generateFacts}
-                      disabled={aiGeneratingFacts}
-                      sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
-                    >
-                      {aiGeneratingFacts ? 'Generating...' : 'Find More Facts'}
-                    </Button>
-                  </Box>
-                  
-                  <Stack spacing={2}>
-                    {userReferences
-                      .filter(ref => ref.type === 'factoid' || ref.type === 'stat')
-                      .map((fact) => {
-                        const isSelected = selectedReferences.includes(fact.id);
-                        return (
-                          <Paper
-                            key={fact.id}
-                            elevation={3}
-                            sx={{
-                              p: 2,
-                              borderRadius: 2,
-                              position: 'relative',
-                              overflow: 'hidden',
-                              border: isSelected ? 2 : 0,
-                              borderColor: 'secondary.main',
-                              borderLeft: `6px solid ${fact.color || 'secondary.main'}`,
-                              transition: 'all 0.2s',
-                              cursor: 'pointer',
-                              '&:hover': {
-                                transform: 'translateY(-2px)',
-                                boxShadow: 6
-                              }
-                            }}
-                            onClick={() => toggleReferenceSelection(fact.id)}
-                          >
-                            {isSelected && (
-                              <Checkbox
-                                checked
-                                sx={{ 
-                                  position: 'absolute', 
-                                  top: 5, 
-                                  right: 5, 
-                                  zIndex: 1,
-                                  color: 'secondary.main',
-                                  bgcolor: 'rgba(255,255,255,0.8)',
-                                  borderRadius: '50%'
-                                }}
-                              />
-                            )}
-                            <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                              <Avatar
-                                sx={{
-                                  bgcolor: fact.color || 'secondary.main',
-                                  mr: 2,
-                                  width: { xs: 32, sm: 40 },
-                                  height: { xs: 32, sm: 40 }
-                                }}
-                              >
-                                {fact.type === 'factoid' ? <BoltIcon sx={{ fontSize: { xs: 16, sm: 24 } }} /> : <PsychologyIcon sx={{ fontSize: { xs: 16, sm: 24 } }} />}
-                              </Avatar>
-                              <Box sx={{ flex: 1 }}>
-                                <Typography variant="body1" sx={{ fontWeight: 500, fontSize: { xs: '0.875rem', sm: '1rem' } }}>
-                                  {fact.content}
-                                </Typography>
-                                {fact.source && (
-                                  <Chip 
-                                    variant="outlined"
-                                    size="small"
-                                    icon={<ArticleIcon sx={{ fontSize: '0.7rem' }} />}
-                                    label={`Source: ${fact.source}`}
-                                    color="secondary"
-                                    sx={{ mt: 1, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
-                                  />
-                                )}
-                              </Box>
-                            </Box>
-                          </Paper>
-                        );
-                      })}
-                  </Stack>
-                  
-                  {userReferences.filter(ref => ref.type === 'factoid' || ref.type === 'stat').length === 0 && (
-                    <Box sx={{ textAlign: 'center', py: 4 }}>
-                      {aiGeneratingFacts ? (
-                        <>
-                          <CircularProgress sx={{ mb: 2 }} />
-                          <Typography color="text.secondary">
-                            Discovering amazing facts about this topic...
-                          </Typography>
-                        </>
-                      ) : (
-                        <>
-                          <LightbulbIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
-                          <Typography color="text.secondary">
-                            No facts discovered yet. Try generating more facts.
-                          </Typography>
-                        </>
-                      )}
-                    </Box>
-                  )}
-                </Box>
-              </TabPanel>
-            </Box>
-            
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              pt: 2, 
-              borderTop: '1px solid', 
-              borderColor: 'divider',
-              mt: 2,
-              flexWrap: { xs: 'wrap', sm: 'nowrap' },
-              gap: { xs: 1, sm: 0 }
-            }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', width: { xs: '100%', sm: 'auto' } }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mr: 1, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                  {selectedReferences.length} items selected
-                </Typography>
-                {selectedReferences.length > 0 && (
-                  <Chip 
-                    label={`${selectedReferences.filter(id => 
-                      userReferences.find(ref => ref.id === id)?.type === 'article'
-                    ).length} news, ${selectedReferences.filter(id => 
-                      ['factoid', 'stat'].includes(userReferences.find(ref => ref.id === id)?.type || '')
-                    ).length} facts`} 
-                    size="small" 
-                    color="primary" 
-                    sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
-                  />
-                )}
-              </Box>
-              <Box sx={{ display: 'flex', width: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'space-between', sm: 'flex-end' } }}>
-                <Button 
-                  onClick={() => setContentSelectionOpen(false)} 
-                  color="inherit"
-                  sx={{ mr: 1, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={generatePromptPreview}
-                  color="info"
-                  sx={{ mr: 1, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
-                >
-                  Preview Prompt
-                </Button>
-                <Button 
-                  onClick={() => {
-                    // Initially select all items if none are selected
-                    if (selectedReferences.length === 0) {
-                      setSelectedReferences(userReferences.map(ref => ref.id));
-                    }
-                    proceedWithScriptGeneration();
-                  }}
-                  variant="contained" 
-                  startIcon={<MicIcon />}
-                  disabled={aiGeneratingNews || aiGeneratingFacts}
-                  sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
-                >
-                  Generate With Selected Content
-                </Button>
-              </Box>
-            </Box>
-          </Paper>
-        </Box>
-      )}
-      <ArticlePreviewDialog />
-
-      {/* Prompt Preview Dialog */}
-      <Dialog
-        open={showPromptPreview}
-        onClose={() => setShowPromptPreview(false)}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{
-          sx: { 
-            height: { xs: '90vh', sm: '80vh' },
-            maxHeight: '90vh',
-            display: 'flex',
-            flexDirection: 'column',
-          }
-        }}
-      >
-        <DialogTitle sx={{ 
-          bgcolor: 'info.main', 
-          color: 'white',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1
-        }}>
-          <ArticleIcon />
-          AI Prompt Preview
-        </DialogTitle>
-        <DialogContent sx={{ p: 0, flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <Box 
-            sx={{ 
-              p: 3, 
-              fontFamily: 'monospace', 
-              bgcolor: 'rgba(0,0,0,0.04)', 
-              overflow: 'auto',
-              flex: 1,
-              fontSize: { xs: '0.75rem', sm: '0.875rem' }
-            }}
-          >
-            {promptPreview.split('\n').map((line, index) => (
-              <Box key={index} sx={{ pb: 1 }}>
-                {line.startsWith('## ') ? (
-                  <Typography variant="subtitle1" fontWeight="bold" sx={{ color: 'primary.main', mt: 2 }}>
-                    {line.substring(3)}
-                  </Typography>
-                ) : line.startsWith('# ') ? (
-                  <Typography variant="h6" fontWeight="bold" sx={{ color: 'secondary.main', mb: 1 }}>
-                    {line.substring(2)}
-                  </Typography>
-                ) : line.startsWith('- ') ? (
-                  <Box sx={{ display: 'flex', pl: 2 }}>
-                    <Box sx={{ pr: 1 }}>•</Box>
-                    <Box>
-                      {line.substring(2).split(/(\[Source: .*?\])/).map((part, i) => (
-                        part.startsWith('[Source:') ? (
-                          <Chip
-                            key={i}
-                            label={part.replace(/^\[Source: |\]$/g, '')} 
-                            size="small" 
-                            color="info"
-                            variant="outlined"
-                            sx={{ ml: 1, fontSize: '0.7rem' }}
-                          />
-                        ) : (
-                          <span key={i}>{part}</span>
-                        )
-                      ))}
-                    </Box>
-                  </Box>
-                ) : (
-                  <Typography variant="body2">{line}</Typography>
-                )}
-              </Box>
-            ))}
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
-            This is a preview of how your selected content will be formatted in the AI prompt
-          </Typography>
-          <Button onClick={() => setShowPromptPreview(false)} color="inherit">
-            Close
-          </Button>
-          <Button 
-            onClick={() => {
-              setShowPromptPreview(false);
-              proceedWithScriptGeneration();
-            }} 
-            variant="contained" 
-            color="success"
-          >
-            Looks Good, Generate!
           </Button>
         </DialogActions>
       </Dialog>
