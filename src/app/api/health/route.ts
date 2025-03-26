@@ -17,6 +17,9 @@ export const GET = withErrorHandling(async () => {
     services: {
       firebase: !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
       openai: !!process.env.OPENAI_API_KEY,
+      news: !!process.env.NEWS_API_KEY,
     },
+    openaiKeyLength: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.length : 0,
+    newsKeyLength: process.env.NEWS_API_KEY ? process.env.NEWS_API_KEY.length : 0,
   });
 }); 

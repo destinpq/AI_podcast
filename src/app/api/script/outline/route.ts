@@ -21,7 +21,7 @@ interface RequestBody {
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  timeout: 30000, // 30 second timeout for OpenAI requests
+  timeout: 60000, // Increased to 60 second timeout for OpenAI requests
 });
 
 export async function POST(request: Request) {
