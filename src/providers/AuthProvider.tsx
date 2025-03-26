@@ -60,29 +60,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-      
-      // Store user data in sessionStorage to persist between page loads
-      if (currentUser) {
-        try {
-          // Only store minimal user data, not the entire user object
-          const minimalUserData = {
-            uid: currentUser.uid,
-            email: currentUser.email,
-            displayName: currentUser.displayName
-          };
-          sessionStorage.setItem('authUser', JSON.stringify(minimalUserData));
-        } catch (e) {
-          console.error('Failed to store user data', e);
+    let unsubscribed = false;
+    
+    try {
+      const unsubscribe = onAuthStateChanged(
+        auth,
+        (currentUser) => {
+          if (unsubscribed) return;
+          
+          setUser(currentUser);
+          setLoading(false);
+          
+          // Store user data in sessionStorage to persist between page loads
+          if (currentUser) {
+            try {
+              // Only store minimal user data, not the entire user object
+              const minimalUserData = {
+                uid: currentUser.uid,
+                email: currentUser.email,
+                displayName: currentUser.displayName
+              };
+              sessionStorage.setItem('authUser', JSON.stringify(minimalUserData));
+            } catch (e) {
+              console.error('Failed to store user data', e);
+            }
+          } else {
+            sessionStorage.removeItem('authUser');
+          }
+        },
+        (error) => {
+          console.error('Auth state change error:', error);
+          setLoading(false);
+          setUser(null);
         }
-      } else {
-        sessionStorage.removeItem('authUser');
-      }
-    });
+      );
 
-    return () => unsubscribe();
+      return () => {
+        unsubscribed = true;
+        unsubscribe();
+      };
+    } catch (error) {
+      console.error('Error setting up auth listener:', error);
+      setLoading(false);
+      return () => {};
+    }
   }, [mounted]);
 
   const signIn = async (email: string, password: string) => {

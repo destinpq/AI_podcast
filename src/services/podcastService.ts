@@ -25,7 +25,7 @@ export interface PodcastOutline {
     title: string;
     points: string[];
   }>;
-  [key: string]: any;
+  [key: string]: string | string[] | Array<{title: string; points: string[]}> | undefined;
 }
 
 // Types

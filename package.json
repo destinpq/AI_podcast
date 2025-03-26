@@ -3,9 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
+    "dev:turbo": "next dev --turbopack",
     "build": "next build",
-    "build:no-lint": "next build --no-lint",
+    "build:no-lint": "ESLINT_NO_DEV_ERRORS=true NEXT_DISABLE_ESLINT=1 next build --no-lint",
+    "postbuild": "echo 'Build completed' && node -e \"console.log('Node version:', process.version)\"",
     "start": "next start",
     "lint": "next lint",
     "deploy": "vercel deploy --prod"

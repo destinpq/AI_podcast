@@ -3,14 +3,21 @@
 import { useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import SaveScriptButton from '@/components/SaveScriptButton';
-import { PodcastOutline } from '@/services/podcastService';
+
+// Define a local interface that matches SaveScriptButton's expectation
+interface PodcastOutline {
+  intro?: string;
+  topics?: string[];
+  conclusion?: string;
+  [key: string]: string | string[] | undefined;
+}
 
 export default function TempScriptWriter() {
   const [topic] = useState('Sample Topic');
   const [script] = useState('This is a sample script.');
   const userId = 'demo-user';
   
-  // Simple outline that matches PodcastOutline structure
+  // Simple outline with the correct structure
   const outline: PodcastOutline = {
     intro: 'Introduction',
     topics: ['Topic 1', 'Topic 2'],

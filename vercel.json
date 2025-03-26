@@ -1,16 +1,18 @@
 {
   "version": 2,
   "functions": {
-    "src/app/api/**/*.ts": {
+    "app/api/**/*": {
       "maxDuration": 60
     }
   },
-  "buildCommand": "yarn build:no-lint",
+  "buildCommand": "NODE_ENV=production NEXT_DISABLE_ESLINT=1 next build --no-lint",
   "devCommand": "next dev",
   "installCommand": "yarn install",
   "framework": "nextjs",
   "outputDirectory": ".next",
+  "ignoreCommand": "! git diff --quiet HEAD^ HEAD ./ || echo 'Only content updates, skipping build'",
   "env": {
-    "NEXT_DISABLE_ESLINT": "1"
+    "NEXT_DISABLE_ESLINT": "1",
+    "ESLINT_NO_DEV_ERRORS": "true"
   }
 } 
