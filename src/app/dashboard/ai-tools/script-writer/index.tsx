@@ -38,6 +38,9 @@ import {
   ListItemText,
   Tabs,
   Tab,
+  Chip,
+  Link,
+  Divider,
 } from '@mui/material';
 import { 
   Edit as EditIcon,
@@ -46,7 +49,8 @@ import {
   CheckCircle as CheckCircleIcon,
   Lightbulb as LightbulbIcon,
   Mic as MicIcon,
-  Save as SaveIcon,
+  Article as ArticleIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import TrendsWordnet from '@/components/TrendsWordnet';
@@ -76,6 +80,17 @@ interface TrendingContent {
   url: string;
   score?: number;
   publishedAt?: string;
+}
+
+interface NewsArticle {
+  title: string;
+  description: string;
+  url: string;
+  source: {
+    name: string;
+  };
+  publishedAt: string;
+  urlToImage?: string;
 }
 
 interface TabPanelProps {
@@ -172,9 +187,48 @@ export default function ScriptWriter() {
     relatedQueries: string[];
   } | null>(null);
   const [showWordnet, setShowWordnet] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [featureProgress, setFeatureProgress] = useState<number>(0);
+  const [newsArticles, setNewsArticles] = useState<NewsArticle[]>([]);
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [newsError, setNewsError] = useState<string | null>(null);
 
   const steps = ['Enter Topic', 'Review & Select Points', 'Generated Script'];
+
+  // Fetch news articles for the topic
+  useEffect(() => {
+    const fetchNews = async () => {
+      if (topic.trim().length < 3) return;
+      
+      setNewsLoading(true);
+      setNewsError(null);
+      
+      try {
+        const response = await fetch(`/api/news?q=${encodeURIComponent(topic)}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch news');
+        }
+        
+        const data = await response.json();
+        setNewsArticles(data.articles || []);
+        
+        // Update feature progress when news is loaded
+        setFeatureProgress(prev => Math.min(80, prev + 20));
+      } catch (err) {
+        console.error('Error fetching news:', err);
+        setNewsError('Failed to load news articles');
+      } finally {
+        setNewsLoading(false);
+      }
+    };
+    
+    const debounceTimer = setTimeout(() => {
+      if (topic.trim().length >= 3) {
+        fetchNews();
+      }
+    }, 800);
+    
+    return () => clearTimeout(debounceTimer);
+  }, [topic]);
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -218,8 +272,29 @@ export default function ScriptWriter() {
       }
 
       const trendsResult = await trendsResponse.json();
+      
+      // Incorporate news articles into the trends data
+      if (newsArticles.length > 0) {
+        const newsItems = newsArticles.map(article => ({
+          title: article.title,
+          source: article.source.name,
+          url: article.url,
+          publishedAt: article.publishedAt
+        }));
+        
+        // Merge with existing news or use as primary source
+        if (trendsResult.news && trendsResult.news.length > 0) {
+          trendsResult.news = [...newsItems, ...trendsResult.news].slice(0, 10);
+        } else {
+          trendsResult.news = newsItems;
+        }
+      }
+      
       setTrendsData(trendsResult);
       setShowWordnet(true);
+      
+      // Update feature progress to maximum when trends are loaded
+      setFeatureProgress(100);
 
       // Generate outline with trends data and duration
       const outlineResponse = await fetch('/api/script/outline', {
@@ -478,7 +553,15 @@ export default function ScriptWriter() {
                       fullWidth
                       placeholder="Enter your podcast topic"
                       value={topic}
-                      onChange={(e) => setTopic(e.target.value)}
+                      onChange={(e) => {
+                        setTopic(e.target.value);
+                        // Update feature progress based on topic length
+                        if (e.target.value.length > 0) {
+                          setFeatureProgress(Math.min(20, e.target.value.length * 2));
+                        } else {
+                          setFeatureProgress(0);
+                        }
+                      }}
                       disabled={loading}
                       sx={{ 
                         flex: { xs: '1 1 100%', sm: '1 1 auto' },
@@ -500,7 +583,11 @@ export default function ScriptWriter() {
                       <Select
                         value={duration}
                         label="Duration"
-                        onChange={(e) => setDuration(e.target.value as number)}
+                        onChange={(e) => {
+                          setDuration(e.target.value as number);
+                          // Increase feature progress when duration is selected
+                          setFeatureProgress(prev => Math.min(40, prev + 10));
+                        }}
                         disabled={loading}
                       >
                         {DURATION_OPTIONS.map(option => (
@@ -523,7 +610,11 @@ export default function ScriptWriter() {
                       <Select
                         value={memberCount}
                         label="Members"
-                        onChange={(e) => setMemberCount(e.target.value as number)}
+                        onChange={(e) => {
+                          setMemberCount(e.target.value as number);
+                          // Increase feature progress when member count is changed
+                          setFeatureProgress(prev => Math.min(60, prev + 10));
+                        }}
                         disabled={loading}
                       >
                         {MEMBER_OPTIONS.map(option => (
@@ -550,6 +641,56 @@ export default function ScriptWriter() {
                       )}
                     </Button>
                   </Box>
+                  
+                  {/* Feature progression bar */}
+                  <Box sx={{ mt: 2, mb: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Feature Progression
+                      </Typography>
+                      <Typography variant="body2" color="primary">
+                        {featureProgress}% Complete
+                      </Typography>
+                    </Box>
+                    <LinearProgress 
+                      variant="determinate" 
+                      value={featureProgress} 
+                      sx={{ height: 8, borderRadius: 4 }}
+                    />
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1, flexWrap: 'wrap' }}>
+                      <Chip 
+                        label="Topic Selection" 
+                        size="small" 
+                        color={featureProgress >= 20 ? "primary" : "default"}
+                        sx={{ m: 0.5 }}
+                      />
+                      <Chip 
+                        label="Duration Setting" 
+                        size="small" 
+                        color={featureProgress >= 40 ? "primary" : "default"}
+                        sx={{ m: 0.5 }}
+                      />
+                      <Chip 
+                        label="Member Configuration" 
+                        size="small" 
+                        color={featureProgress >= 60 ? "primary" : "default"}
+                        sx={{ m: 0.5 }}
+                      />
+                      <Chip 
+                        label="News Integration" 
+                        size="small" 
+                        color={trendsData ? "primary" : "default"}
+                        sx={{ m: 0.5 }}
+                      />
+                      <Chip 
+                        label="AI Generation" 
+                        size="small" 
+                        color={activeStep > 0 ? "primary" : "default"}
+                        sx={{ m: 0.5 }}
+                      />
+                    </Box>
+                  </Box>
+                  
                   <Typography 
                     variant="body2" 
                     color="text.secondary"
@@ -563,7 +704,7 @@ export default function ScriptWriter() {
                   {showWordnet && trendsData && (
                     <Box sx={{ mt: 4 }}>
                       <Typography variant="h6" gutterBottom>
-                        Trending Topics for "{topic}"
+                        Trending Topics for &quot;{topic}&quot;
                       </Typography>
                       
                       <Tabs value={tabValue} onChange={handleTabChange} sx={{ mb: 2 }}>
@@ -575,8 +716,6 @@ export default function ScriptWriter() {
                         <Box sx={{ height: 400, border: '1px solid #eee', borderRadius: 2, overflow: 'hidden', p: 2 }}>
                           <TrendsWordnet 
                             topic={topic} 
-                            height={350} 
-                            width={isMobile ? 300 : 700} 
                             keywords={[
                               ...trendsData.relatedQueries, 
                               ...trendsData.news.map(n => n.title).slice(0, 3)
@@ -1075,6 +1214,75 @@ export default function ScriptWriter() {
                       }
                     </Typography>
                   </Paper>
+                </Box>
+              )}
+
+              {/* News Articles */}
+              {topic.trim().length >= 3 && (
+                <Box sx={{ mt: 4 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6">
+                      <ArticleIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
+                      Latest News on "{topic}"
+                    </Typography>
+                    
+                    <Tooltip title="Refresh news">
+                      <IconButton 
+                        size="small" 
+                        onClick={() => {
+                          setNewsArticles([]);
+                          setFeatureProgress(prev => Math.max(40, prev - 20));
+                          // Re-trigger the useEffect
+                          const newTopic = topic + ' ';
+                          setTopic(newTopic.trim());
+                        }}
+                        disabled={newsLoading}
+                      >
+                        <RefreshIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                  
+                  {newsLoading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                      <CircularProgress />
+                    </Box>
+                  ) : newsError ? (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                      {newsError}
+                    </Alert>
+                  ) : newsArticles.length === 0 ? (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      No news articles found for this topic.
+                    </Alert>
+                  ) : (
+                    <Box sx={{ maxHeight: 300, overflow: 'auto', border: '1px solid #eee', borderRadius: 2, p: 2 }}>
+                      <Grid container spacing={2}>
+                        {newsArticles.slice(0, 6).map((article, index) => (
+                          <Grid item xs={12} sm={6} key={index}>
+                            <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                              <CardContent sx={{ flex: '1 0 auto', pb: 1 }}>
+                                <Typography variant="subtitle1" gutterBottom noWrap>
+                                  {article.title}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ mb: 1, display: '-webkit-box', overflow: 'hidden', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2 }}>
+                                  {article.description || 'No description available'}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" display="block">
+                                  {article.source.name} • {new Date(article.publishedAt).toLocaleDateString()}
+                                </Typography>
+                              </CardContent>
+                              <Box sx={{ p: 1, pt: 0 }}>
+                                <Link href={article.url} target="_blank" rel="noopener" underline="none">
+                                  <Button size="small" fullWidth>Read More</Button>
+                                </Link>
+                              </Box>
+                            </Card>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    </Box>
+                  )}
                 </Box>
               )}
             </CardContent>
