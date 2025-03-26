@@ -1051,6 +1051,149 @@ Please create a conversational podcast script that covers the topic and incorpor
     setShowPromptPreview(true);
   };
 
+  // Find where the script is rendered and update the component to enhance section headers
+
+  // Look for the script display part in the component
+  // Replace or enhance the text display with formatted UI components for section headers
+
+  // This might be in a section that renders the script content
+  const formatScriptContent = (script: string) => {
+    if (!script) return null;
+
+    // Split the script into lines
+    const lines = script.split('\n');
+    
+    // Initialize result array
+    const formattedContent: React.ReactNode[] = [];
+    
+    // Track current index for key generation
+    let currentIndex = 0;
+    
+    // Process each line
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // Check for section headers (like [INTRO], [Conclusion], etc.)
+      if (line.match(/^\[(.*?)\]$/) || line.match(/^#+\s+(.*)$/)) {
+        // It's a section header - extract the title
+        const titleMatch = line.match(/^\[(.*?)\]$/) || line.match(/^#+\s+(.*)$/);
+        const title = titleMatch ? (titleMatch[1] || titleMatch[0]) : line;
+        
+        // Add a separator if not the first header
+        if (currentIndex > 0) {
+          formattedContent.push(
+            <Box key={`separator-${currentIndex}`} sx={{ my: 2 }}>
+              <Divider />
+            </Box>
+          );
+        }
+        
+        // Add the formatted header
+        formattedContent.push(
+          <Box 
+            key={`header-${currentIndex++}`} 
+            sx={{ 
+              my: 2, 
+              p: 1.5, 
+              bgcolor: 'primary.main', 
+              color: 'white',
+              borderRadius: 1,
+              boxShadow: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}
+          >
+            <AssignmentIcon />
+            <Typography variant="h6" fontWeight="bold">
+              {title.replace(/^#+\s+/, '')}
+            </Typography>
+          </Box>
+        );
+      } 
+      // Check for speaker lines (e.g., "HOST: Hello")
+      else if (line.match(/^([A-Z0-9 ]+):\s+(.*)/)) {
+        const parts = line.match(/^([A-Z0-9 ]+):\s+(.*)/);
+        if (parts && parts.length >= 3) {
+          const speaker = parts[1];
+          const text = parts[2];
+          
+          // Add the formatted speaker line
+          formattedContent.push(
+            <Box key={`line-${currentIndex++}`} sx={{ mb: 2, display: 'flex', alignItems: 'flex-start' }}>
+              <Box 
+                sx={{ 
+                  minWidth: 80, 
+                  mr: 2, 
+                  p: 1, 
+                  bgcolor: speaker.includes('HOST') ? 'secondary.main' : 'info.main', 
+                  color: 'white',
+                  borderRadius: 1,
+                  fontWeight: 'bold',
+                  textAlign: 'center',
+                  fontSize: '0.9rem'
+                }}
+              >
+                {speaker}
+              </Box>
+              <Typography 
+                variant="body1" 
+                sx={{ 
+                  flex: 1,
+                  p: 1,
+                  bgcolor: 'background.paper',
+                  borderRadius: 1,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                }}
+              >
+                {text}
+              </Typography>
+            </Box>
+          );
+        } else {
+          // Regular line
+          formattedContent.push(
+            <Typography key={`line-${currentIndex++}`} variant="body1" paragraph>
+              {line}
+            </Typography>
+          );
+        }
+      } 
+      // Empty lines add some spacing
+      else if (line.trim() === '') {
+        formattedContent.push(
+          <Box key={`space-${currentIndex++}`} sx={{ height: '0.5rem' }} />
+        );
+      } 
+      // Regular text line
+      else {
+        formattedContent.push(
+          <Typography 
+            key={`line-${currentIndex++}`} 
+            variant="body1" 
+            paragraph
+            sx={{
+              pl: 2,
+              borderLeft: '3px solid',
+              borderColor: 'divider'
+            }}
+          >
+            {line}
+          </Typography>
+        );
+      }
+    }
+    
+    return (
+      <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+        {formattedContent}
+      </Box>
+    );
+  };
+
+  // Now replace the existing script display with this formatted version
+  // Find where the script is displayed and replace it with formatScriptContent(script)
+
   return (
     <Box sx={{ 
       p: { xs: 1, sm: 3 }, 
@@ -1544,7 +1687,7 @@ Please create a conversational podcast script that covers the topic and incorpor
                       fontSize: { xs: '0.875rem', sm: '1rem' }
                     }}
                   >
-                    {script}
+                    {formatScriptContent(script)}
                   </Paper>
                   
                   <Grid container spacing={3}>
@@ -1952,7 +2095,7 @@ Please create a conversational podcast script that covers the topic and incorpor
                       fontSize: { xs: '0.875rem', sm: '1rem' }
                     }}
                   >
-                    {script}
+                    {formatScriptContent(script)}
                   </Paper>
                   
                   <Grid container spacing={3}>
