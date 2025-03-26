@@ -2,7 +2,12 @@
 const nextConfig = {
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000'],
+      allowedOrigins: [
+        'localhost:3000', 
+        'ai-podcast-app.vercel.app',
+        'ai-podcast.vercel.app',
+        '*.vercel.app'
+      ],
     },
   },
   env: {
@@ -10,4 +15,4 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig 
+module.exports = nextConfig

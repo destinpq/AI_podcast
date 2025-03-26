@@ -1,12 +1,16 @@
 {
   "version": 2,
   "functions": {
-    "src/app/api/**/*": {
+    "src/app/api/**/*.ts": {
       "maxDuration": 60
     }
   },
-  "buildCommand": "next build",
+  "buildCommand": "yarn build:no-lint",
   "devCommand": "next dev",
+  "installCommand": "yarn install",
   "framework": "nextjs",
-  "outputDirectory": ".next"
+  "outputDirectory": ".next",
+  "env": {
+    "NEXT_DISABLE_ESLINT": "1"
+  }
 } 

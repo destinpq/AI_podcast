@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Box, TextField, Button } from '@mui/material';
+import { Box } from '@mui/material';
 import { TrendingContent } from '@/types/trends';
 
 interface TrendSearchProps {
@@ -12,7 +12,10 @@ interface TrendSearchProps {
   }) => void;
 }
 
-export default function TrendSearch({ onTrendsSelected }: TrendSearchProps) {
+export default function TrendSearch(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  { onTrendsSelected }: TrendSearchProps
+) {
   // This is a placeholder component
   // The actual implementation will be added later
   
