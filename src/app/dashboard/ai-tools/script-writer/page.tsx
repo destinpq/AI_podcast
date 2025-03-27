@@ -2,6 +2,6 @@
 
 import ScriptWriter from './index';
 
-export default function ScriptWriterPage() {
+export default function Page() {
   return <ScriptWriter />;
 } 
