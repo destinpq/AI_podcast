@@ -2,7 +2,7 @@
   "version": 2,
   "functions": {
     "app/api/**/*": {
-      "maxDuration": 30
+      "maxDuration": 60
     }
   },
   "buildCommand": "NEXT_DISABLE_ESLINT=1 next build --no-lint",

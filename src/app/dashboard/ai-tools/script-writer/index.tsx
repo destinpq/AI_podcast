@@ -236,6 +236,10 @@ export default function ScriptWriter() {
         { title: 'Generating engagement hooks', status: 'pending', progress: 0 }
       ]);
 
+      // Set up the fetch request with a timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+
       const response = await fetch('/api/generate-outline', {
         method: 'POST',
         headers: {
@@ -246,7 +250,16 @@ export default function ScriptWriter() {
           duration,
           memberCount,
         }),
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
+      
+      // Check for non-JSON responses which could happen with server errors
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error(`Server returned non-JSON response: ${await response.text()}`);
+      }
       
       const data = await response.json();
       
@@ -275,11 +288,17 @@ export default function ScriptWriter() {
 
     } catch (error) {
       console.error('Error generating outline:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to generate outline');
+      
+      // Handle specific error types
+      if (error.name === 'AbortError') {
+        toast.error('Request timed out. Please try again with a simpler topic or shorter duration.');
+      } else {
+        toast.error(error instanceof Error ? error.message : 'Failed to generate outline');
+      }
       
       // Reset steps on error
       setGenerationSteps([
-        { title: 'Research failed', status: 'pending', progress: 0 },
+        { title: 'Research failed', status: 'error', progress: 0 },
         { title: 'Outline creation', status: 'pending', progress: 0 },
         { title: 'Hook generation', status: 'pending', progress: 0 }
       ]);
@@ -395,6 +414,10 @@ export default function ScriptWriter() {
         }
       };
 
+      // Set up the fetch request with a timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout for script generation
+
       // Call the short-form API endpoint
       const response = await fetch('/api/script/short-form', {
         method: 'POST',
@@ -413,17 +436,21 @@ export default function ScriptWriter() {
             optimal: duration * 140
           }
         }),
+        signal: controller.signal
       });
       
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to generate script');
+      clearTimeout(timeoutId);
+      
+      // Check for non-JSON responses
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error(`Server returned non-JSON response: ${await response.text()}`);
       }
       
       const data = await response.json();
       
-      if (data.error) {
-        throw new Error(data.error);
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate script');
       }
 
       // Format the script with detailed timing and structure indicators

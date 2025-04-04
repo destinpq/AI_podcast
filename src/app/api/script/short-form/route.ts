@@ -1,6 +1,17 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
+// Helper function to handle API timeouts
+const timeoutPromise = (ms: number) => {
+  return new Promise((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`Operation timed out after ${ms / 1000} seconds`));
+    }, ms);
+  });
+};
+
+export const runtime = 'edge'; // Use edge runtime for better performance
+
 export async function POST(request: Request) {
   try {
     const { topic, prompts, outline, duration, memberCount, targetWordCount, enhancedQuality, format } = await request.json();
@@ -84,125 +95,145 @@ Please create a structured script with three distinct sections that I can separa
 
 Format with clear section breaks and speaker labels.`;
 
-    // Generate the hook section
-    const hookResponse = await openai.chat.completions.create({
-      model: model,
-      messages: [
-        { role: "system", content: systemMessage },
-        { role: "user", content: `${prompt}\n\nPlease create ONLY the 15-second HOOK section of the script.` }
-      ],
-      temperature: temperature,
-      max_tokens: 250
-    });
-
-    // Generate the main insight section
-    const insightResponse = await openai.chat.completions.create({
-      model: model,
-      messages: [
-        { role: "system", content: systemMessage },
-        { role: "user", content: `${prompt}\n\nPlease create ONLY the main INSIGHT section of the script.` }
-      ],
-      temperature: temperature,
-      max_tokens: 1500
-    });
-
-    // Generate the takeaway section
-    const takeawayResponse = await openai.chat.completions.create({
-      model: model,
-      messages: [
-        { role: "system", content: systemMessage },
-        { role: "user", content: `${prompt}\n\nPlease create ONLY the 45-second TAKEAWAY section of the script.` }
-      ],
-      temperature: temperature,
-      max_tokens: 500
-    });
-
-    // Extract the sections
-    const hook = hookResponse.choices[0].message.content || '';
-    const insight = insightResponse.choices[0].message.content || '';
-    const takeaway = takeawayResponse.choices[0].message.content || '';
-
-    // Calculate word count
-    const fullScript = `${hook}\n\n${insight}\n\n${takeaway}`;
-    const wordCount = fullScript.split(/\s+/).length;
-
-    // Generate AI rating and feedback
-    const ratingResponse = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
-      messages: [
-        { 
-          role: "system", 
-          content: "You are an expert podcast script analyst who evaluates scripts based on content quality, structure, engagement, clarity, and pacing." 
-        },
-        { 
-          role: "user", 
-          content: `Please evaluate this ${duration}-minute podcast script on a scale of 1-5 for each category, where 5 is excellent. Provide brief, actionable feedback.\n\nSCRIPT:\n${fullScript}` 
-        }
-      ],
-      temperature: 0.3,
-      max_tokens: 500
-    });
-
-    // Extract ratings and feedback
-    const ratingText = ratingResponse.choices[0].message.content || '';
-    
-    // Parse ratings (simple extraction - could be made more robust)
-    const contentRating = parseFloat(ratingText.match(/content.*?(\d+\.?\d*)/i)?.[1] || '4.5');
-    const structureRating = parseFloat(ratingText.match(/structure.*?(\d+\.?\d*)/i)?.[1] || '4.5');
-    const engagementRating = parseFloat(ratingText.match(/engagement.*?(\d+\.?\d*)/i)?.[1] || '4.5');
-    const clarityRating = parseFloat(ratingText.match(/clarity.*?(\d+\.?\d*)/i)?.[1] || '4.5');
-    const pacingRating = parseFloat(ratingText.match(/pacing.*?(\d+\.?\d*)/i)?.[1] || '4.5');
-    
-    // Calculate overall rating
-    const overall = (contentRating + structureRating + engagementRating + clarityRating + pacingRating) / 5;
-
-    // Extract improvement points
-    const improvements = ratingText.includes('improvements') ? 
-      ratingText.split('improvements')[1].split('\n').filter(line => line.trim().length > 0 && line.includes('-')).map(line => line.replace(/^-\s*/, '').trim()) : 
-      [];
-
-    // Return structured script with metadata
-    return NextResponse.json({
-      script: {
-        hook,
-        insight,
-        takeaway
-      },
-      wordCount,
-      metadata: {
-        duration,
-        type: 'expert_insight',
-        sections: [
-          { type: 'hook', duration: 15 },
-          { type: 'insight', duration: duration * 60 - 60 },
-          { type: 'takeaway', duration: 45 }
-        ]
-      },
-      rating: {
-        overall: parseFloat(overall.toFixed(1)),
-        categories: {
-          content: contentRating,
-          structure: structureRating,
-          engagement: engagementRating,
-          clarity: clarityRating,
-          pacing: pacingRating
-        },
-        feedback: {
-          strengths: [
-            'Expert perspective',
-            'Clear structure',
-            'Engaging delivery',
-            'Actionable takeaways',
-            'Professional tone'
+    try {
+      // Generate the hook section with timeout
+      const hookResponse = await Promise.race([
+        openai.chat.completions.create({
+          model: model,
+          messages: [
+            { role: "system", content: systemMessage },
+            { role: "user", content: `${prompt}\n\nPlease create ONLY the 15-second HOOK section of the script.` }
           ],
-          improvements
+          temperature: temperature,
+          max_tokens: 250
+        }),
+        timeoutPromise(30000) // 30 second timeout
+      ]) as OpenAI.Chat.Completions.ChatCompletion;
+
+      // Generate the main insight section with timeout
+      const insightResponse = await Promise.race([
+        openai.chat.completions.create({
+          model: model,
+          messages: [
+            { role: "system", content: systemMessage },
+            { role: "user", content: `${prompt}\n\nPlease create ONLY the main INSIGHT section of the script.` }
+          ],
+          temperature: temperature,
+          max_tokens: 1500
+        }),
+        timeoutPromise(45000) // 45 second timeout
+      ]) as OpenAI.Chat.Completions.ChatCompletion;
+
+      // Generate the takeaway section with timeout
+      const takeawayResponse = await Promise.race([
+        openai.chat.completions.create({
+          model: model,
+          messages: [
+            { role: "system", content: systemMessage },
+            { role: "user", content: `${prompt}\n\nPlease create ONLY the 45-second TAKEAWAY section of the script.` }
+          ],
+          temperature: temperature,
+          max_tokens: 500
+        }),
+        timeoutPromise(30000) // 30 second timeout
+      ]) as OpenAI.Chat.Completions.ChatCompletion;
+
+      // Extract the sections
+      const hook = hookResponse.choices[0].message.content || '';
+      const insight = insightResponse.choices[0].message.content || '';
+      const takeaway = takeawayResponse.choices[0].message.content || '';
+
+      // Calculate word count
+      const fullScript = `${hook}\n\n${insight}\n\n${takeaway}`;
+      const wordCount = fullScript.split(/\s+/).length;
+
+      // Generate AI rating and feedback with timeout
+      const ratingResponse = await Promise.race([
+        openai.chat.completions.create({
+          model: "gpt-4-turbo-preview",
+          messages: [
+            { 
+              role: "system", 
+              content: "You are an expert podcast script analyst who evaluates scripts based on content quality, structure, engagement, clarity, and pacing." 
+            },
+            { 
+              role: "user", 
+              content: `Please evaluate this ${duration}-minute podcast script on a scale of 1-5 for each category, where 5 is excellent. Provide brief, actionable feedback.\n\nSCRIPT:\n${fullScript}` 
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 500
+        }),
+        timeoutPromise(30000) // 30 second timeout
+      ]) as OpenAI.Chat.Completions.ChatCompletion;
+
+      // Extract ratings and feedback
+      const ratingText = ratingResponse.choices[0].message.content || '';
+      
+      // Parse ratings (simple extraction - could be made more robust)
+      const contentRating = parseFloat(ratingText.match(/content.*?(\d+\.?\d*)/i)?.[1] || '4.5');
+      const structureRating = parseFloat(ratingText.match(/structure.*?(\d+\.?\d*)/i)?.[1] || '4.5');
+      const engagementRating = parseFloat(ratingText.match(/engagement.*?(\d+\.?\d*)/i)?.[1] || '4.5');
+      const clarityRating = parseFloat(ratingText.match(/clarity.*?(\d+\.?\d*)/i)?.[1] || '4.5');
+      const pacingRating = parseFloat(ratingText.match(/pacing.*?(\d+\.?\d*)/i)?.[1] || '4.5');
+      
+      // Calculate overall rating
+      const overall = (contentRating + structureRating + engagementRating + clarityRating + pacingRating) / 5;
+
+      // Extract improvement points
+      const improvements = ratingText.includes('improvements') ? 
+        ratingText.split('improvements')[1].split('\n').filter(line => line.trim().length > 0 && line.includes('-')).map(line => line.replace(/^-\s*/, '').trim()) : 
+        [];
+
+      // Return structured script with metadata
+      return NextResponse.json({
+        script: {
+          hook,
+          insight,
+          takeaway
+        },
+        wordCount,
+        metadata: {
+          duration,
+          type: 'expert_insight',
+          sections: [
+            { type: 'hook', duration: 15 },
+            { type: 'insight', duration: duration * 60 - 60 },
+            { type: 'takeaway', duration: 45 }
+          ]
+        },
+        rating: {
+          overall: parseFloat(overall.toFixed(1)),
+          categories: {
+            content: contentRating,
+            structure: structureRating,
+            engagement: engagementRating,
+            clarity: clarityRating,
+            pacing: pacingRating
+          },
+          feedback: {
+            strengths: [
+              'Expert perspective',
+              'Clear structure',
+              'Engaging delivery',
+              'Actionable takeaways',
+              'Professional tone'
+            ],
+            improvements
+          }
         }
-      }
-    });
+      });
+    } catch (timeoutError) {
+      console.error('API timeout:', timeoutError);
+      return NextResponse.json(
+        { error: 'The request took too long to process. Please try again with a simpler topic or shorter duration.' },
+        { status: 504 }
+      );
+    }
   } catch (error) {
     console.error('Error generating script:', error);
     return NextResponse.json(
-      { error: 'Failed to generate script' },
+      { error: 'Failed to generate script: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }
     );
   }
