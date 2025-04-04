@@ -69,12 +69,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       // We're setting configError to false to avoid showing error messages
       setConfigError(false);
+      
       // Save in sessionStorage for persistence
-      sessionStorage.setItem('authUser', JSON.stringify({
-        uid: demoUser.uid,
-        email: demoUser.email,
-        displayName: demoUser.displayName
-      }));
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('authUser', JSON.stringify({
+          uid: demoUser.uid,
+          email: demoUser.email,
+          displayName: demoUser.displayName
+        }));
+      }
       
       console.log('Running in demo mode with mock Firebase authentication');
     } else {
@@ -82,6 +85,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     }
   }, [isDemoMode]);
+
+  // Check for stored user on mount (client-side only)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !user) {
+      const storedUser = sessionStorage.getItem('authUser');
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          // Create a full user object from the stored basic info
+          const sessionUser = {
+            ...demoUser,
+            uid: parsedUser.uid,
+            email: parsedUser.email,
+            displayName: parsedUser.displayName
+          };
+          setUser(sessionUser);
+        } catch (e) {
+          console.error('Error parsing stored user:', e);
+          sessionStorage.removeItem('authUser');
+        }
+      }
+      setLoading(false);
+    }
+  }, []);
 
   // Simplified auth functions for demo
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -122,7 +149,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     setUser(null);
-    sessionStorage.removeItem('authUser');
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('authUser');
+    }
   };
 
   const value = {

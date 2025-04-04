@@ -24,7 +24,7 @@ interface ScriptFormStepProps {
   memberCount: number;
   setMemberCount: (count: number) => void;
   loading: boolean;
-  featureProgress: number;
+  featureProgress?: number;
   handleGenerateOutline: () => void;
   isMobile: boolean;
 }

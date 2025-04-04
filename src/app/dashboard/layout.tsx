@@ -32,6 +32,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '@/providers/AuthProvider';
 
+// Constants
 const drawerWidth = 240;
 
 interface UserData {
@@ -41,7 +42,33 @@ interface UserData {
   avatar: string | null;
 }
 
-export default function DashboardLayout({
+// This wrapper ensures the dashboard only renders on the client
+const ClientOnlyDashboard = ({ children }: { children: React.ReactNode }) => {
+  const [isMounted, setIsMounted] = useState(false);
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  
+  if (!isMounted) {
+    return (
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '100vh',
+        backgroundColor: '#f5f7fa' 
+      }}>
+        <CircularProgress size={50} thickness={4} />
+      </Box>
+    );
+  }
+  
+  return <>{children}</>;
+};
+
+// Main component that will only render on client
+function DashboardLayoutContent({
   children,
 }: {
   children: React.ReactNode;
@@ -49,32 +76,20 @@ export default function DashboardLayout({
   const router = useRouter();
   const theme = useTheme();
   const { user, signOut, loading: authLoading } = useAuth();
-  const [mobileOpen, setMobileOpen] = React.useState(false);
-  const [userMenuAnchor, setUserMenuAnchor] = React.useState<null | HTMLElement>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [mounted, setMounted] = useState(false);
   
-  // Set mounted state to handle client-side rendering
   useEffect(() => {
-    setMounted(true);
-  }, []);
-  
-  // Check authentication using Firebase auth
-  useEffect(() => {
-    if (!mounted) return;
-    
     const checkAuth = async () => {
-      // If still loading auth, wait
       if (authLoading) return;
       
-      // If not authenticated after auth check completed, redirect to login
       if (!user) {
         router.push('/');
         return;
       }
       
-      // Update user data from Firebase user
       if (user) {
         setUserData({
           id: user.uid,
@@ -88,7 +103,7 @@ export default function DashboardLayout({
     };
     
     checkAuth();
-  }, [user, authLoading, router, mounted]);
+  }, [user, authLoading, router]);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -104,20 +119,14 @@ export default function DashboardLayout({
   
   const handleLogout = async () => {
     try {
-      // Use Firebase signOut
       await signOut();
-      
-      // Close menu
       handleCloseUserMenu();
-      
-      // Redirect will happen automatically via auth state change
     } catch (error) {
       console.error('Error signing out:', error);
     }
   };
 
-  // Show loading spinner while checking auth
-  if (isLoading || authLoading || !mounted) {
+  if (isLoading || authLoading) {
     return (
       <Box sx={{ 
         display: 'flex', 
@@ -213,7 +222,6 @@ export default function DashboardLayout({
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      {/* App Bar */}
       <AppBar 
         position="fixed" 
         sx={{ 
@@ -247,14 +255,12 @@ export default function DashboardLayout({
             Saved Scripts
           </Button>
           
-          {/* User Profile Button */}
           <IconButton onClick={handleOpenUserMenu} sx={{ ml: 1 }}>
             <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
               {userData?.name?.charAt(0) || 'U'}
             </Avatar>
           </IconButton>
           
-          {/* User Menu */}
           <Menu
             anchorEl={userMenuAnchor}
             open={Boolean(userMenuAnchor)}
@@ -278,12 +284,10 @@ export default function DashboardLayout({
         </Toolbar>
       </AppBar>
       
-      {/* Navigation Drawer */}
       <Box
         component="nav"
         sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
       >
-        {/* Mobile Drawer */}
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -300,7 +304,6 @@ export default function DashboardLayout({
           {drawer}
         </Drawer>
         
-        {/* Desktop Drawer */}
         <Drawer
           variant="permanent"
           sx={{
@@ -318,7 +321,6 @@ export default function DashboardLayout({
         </Drawer>
       </Box>
       
-      {/* Main Content */}
       <Box
         component="main"
         sx={{ 
@@ -331,5 +333,20 @@ export default function DashboardLayout({
         {children}
       </Box>
     </Box>
+  );
+}
+
+// Export a dynamic component with SSR disabled to prevent hydration issues
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <ClientOnlyDashboard>
+      <DashboardLayoutContent>
+        {children}
+      </DashboardLayoutContent>
+    </ClientOnlyDashboard>
   );
 } 

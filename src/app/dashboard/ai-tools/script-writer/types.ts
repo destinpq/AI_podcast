@@ -3,7 +3,7 @@ export interface SelectedPoint {
   pointIndex: number;
   text: string;
   elaboration?: string;
-  promptType?: 'life_experience' | 'joke' | 'analogy' | 'example' | 'statistic' | 'quote';
+  promptType?: string;
 }
 
 export interface Outline {
@@ -36,13 +36,9 @@ export interface NewsArticle {
 
 export interface UserReference {
   id: string;
-  type: 'article' | 'factoid' | 'stat';
+  type: string;
   content: string;
-  url?: string;
   source?: string;
-  description?: string;
-  thumbnail?: string;
-  color?: string;
 }
 
 export interface TabPanelProps {
@@ -53,7 +49,7 @@ export interface TabPanelProps {
 
 export interface GenerationStep {
   title: string;
-  status: 'pending' | 'active' | 'completed';
+  status: 'completed' | 'pending' | 'active' | 'error';
   progress: number;
 }
 
@@ -124,15 +120,44 @@ export const PROMPT_TYPES = [
 ];
 
 export const DURATION_OPTIONS = [
-  { value: 15, label: '15 minutes' },
-  { value: 30, label: '30 minutes' },
-  { value: 45, label: '45 minutes' },
-  { value: 60, label: '1 hour' },
+  { value: 1, label: '1 minute' },
+  { value: 2, label: '2 minutes' },
+  { value: 3, label: '3 minutes' }
 ];
 
 export const MEMBER_OPTIONS = [
   { value: 1, label: 'Solo' },
-  { value: 2, label: '2 Members' },
-  { value: 3, label: '3 Members' },
-  { value: 4, label: '4 Members' },
+  { value: 2, label: '2 People' },
+  { value: 3, label: '3 People' },
+  { value: 4, label: '4 People' }
 ];
+
+export interface Section {
+  title: string;
+  points: string[];
+}
+
+export interface TrendsData {
+  trends: string[];
+  news?: Array<{
+    title: string;
+    source: string;
+    url: string;
+    publishedAt: string;
+  }>;
+}
+
+export interface AIRating {
+  overall: number;
+  categories: {
+    content: number;
+    structure: number;
+    engagement: number;
+    clarity: number;
+    pacing: number;
+  };
+  feedback: {
+    strengths: string[];
+    improvements: string[];
+  };
+}

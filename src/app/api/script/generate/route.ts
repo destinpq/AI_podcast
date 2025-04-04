@@ -118,245 +118,420 @@ function generateFallbackScript(
 
 export async function POST(request: Request) {
   try {
-    console.log('Received script generation request');
-    const body = await request.json();
-    
-    // Log the request body to debug
-    console.log('Request body:', JSON.stringify(body, null, 2));
-    
+    const { topic, prompts, outline, duration, memberCount, targetWordCount, enhancedQuality, format } = await request.json();
+
     // Validate required fields
-    if (!body.outline) {
-      console.error('Missing required field: outline');
-      return NextResponse.json({ error: 'Missing required field: outline' }, { status: 400 });
-    }
-    
-    // Set defaults for optional fields
-    const selectedPoints = body.selectedPoints || [];
-    const duration = body.duration || 15;
-    const memberCount = body.memberCount || 1;
-    const personalExperiences = body.personalExperiences || [];
-    const userReferences = body.userReferences || [];
-    const targetWordCount = body.targetWordCount || {
-      min: duration * 100,
-      max: duration * 150
-    };
-    
-    // Extract sections from outline
-    const outlineTitle = body.outline.title || 'Podcast Script';
-    const sections = body.outline.sections || [];
-    
-    if (sections.length === 0) {
-      console.error('No sections provided in outline');
-      return NextResponse.json({ error: 'No sections provided in outline' }, { status: 400 });
+    if (!topic) {
+      return NextResponse.json({ error: 'Topic is required' }, { status: 400 });
     }
 
-    // Check for API key - use fallback if not configured
-    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'demo-api-key') {
-      console.log('No valid API key, using fallback script generator');
-      const fallbackScript = generateFallbackScript(
-        outlineTitle,
-        sections,
-        duration,
-        memberCount,
-        userReferences
-      );
-      return NextResponse.json({ script: fallbackScript });
+    if (!outline) {
+      return NextResponse.json({ error: 'Outline is required' }, { status: 400 });
+    }
+
+    if (!duration) {
+      return NextResponse.json({ error: 'Duration is required' }, { status: 400 });
     }
 
     // Initialize OpenAI client
     const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-      timeout: 25000, // reduced timeout to prevent Vercel function timeout
+      apiKey: process.env.OPENAI_API_KEY || '',
     });
 
-    // Prepare the completion prompt
-    const prompt = createScriptPrompt(
-      outlineTitle,
-      sections,
-      selectedPoints,
-      duration,
-      memberCount,
-      personalExperiences,
-      userReferences,
-      targetWordCount
-    );
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json({ error: 'OpenAI API key is not configured' }, { status: 500 });
+    }
 
-    console.log('Sending prompt to OpenAI:', prompt.substring(0, 200) + '...');
+    // Extract content from prompts
+    const research = prompts?.[0]?.replace('Research Summary:\n', '') || '';
+    const outlineText = prompts?.[1]?.replace('Podcast Outline:\n', '') || '';
+    const hooks = prompts?.[2]?.replace('Engagement Elements:\n', '') || '';
 
-    // Generate the script with OpenAI with timeout handling
-    try {
-      // Set up timeout to abort the request if it takes too long
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout
+    // Generate script based on format
+    if (format === 'expert_insight' || enhancedQuality) {
+      // Set up the model parameters
+      const model = "gpt-4-turbo-preview";
+      const temperature = 0.7;
+
+      // Create the system message
+      const systemMessage = `You are an expert podcast scriptwriter specialized in creating high-quality, engaging ${duration}-minute short-form podcast content. 
+Your task is to write a structured podcast script that delivers expert insights on the given topic.
+
+The script should be split into three distinct sections:
+1. HOOK (15 seconds) - An attention-grabbing opening
+2. INSIGHT (Main content - majority of time) - Core insights with evidence
+3. TAKEAWAY (45 seconds) - Actionable conclusion
+
+Use a conversational tone appropriate for ${memberCount} speaker(s).
+Optimize for clarity, engagement, and professional delivery.
+Include clear speaker labels (HOST, GUEST, etc.) and timing guidance.`;
+
+      // The prompt brings all components together
+      const prompt = `
+TOPIC: ${topic}
+
+RESEARCH:
+${research}
+
+OUTLINE:
+${outlineText}
+
+ENGAGEMENT ELEMENTS:
+${hooks}
+
+FORMAT REQUIREMENTS:
+- Duration: ${duration} minutes total
+- Structure: 15-second hook, main insight, 45-second takeaway
+- Style: ${outline.format?.style || 'expert_insight'}
+- Tone: ${outline.format?.tone || 'authoritative'}
+- Target word count: ${targetWordCount?.optimal || (duration * 140)} words
+- Speaker format: ${memberCount} speaker(s)
+
+QUALITY REQUIREMENTS:
+- Content must be factually accurate and substantiated
+- Include specific examples and evidence
+- Use clear transitions between sections
+- Make content actionable and relevant
+- Optimize for spoken delivery (natural language)
+
+Please create a structured script with three distinct sections that I can separate:
+1. A compelling 15-second hook
+2. The main insight section (core content)
+3. A powerful 45-second takeaway/conclusion
+
+Format with clear section breaks and speaker labels.`;
+
+      // Generate the hook section
+      const hookResponse = await openai.chat.completions.create({
+        model: model,
+        messages: [
+          { role: "system", content: systemMessage },
+          { role: "user", content: `${prompt}\n\nPlease create ONLY the 15-second HOOK section of the script.` }
+        ],
+        temperature: temperature,
+        max_tokens: 250
+      });
+
+      // Generate the main insight section
+      const insightResponse = await openai.chat.completions.create({
+        model: model,
+        messages: [
+          { role: "system", content: systemMessage },
+          { role: "user", content: `${prompt}\n\nPlease create ONLY the main INSIGHT section of the script.` }
+        ],
+        temperature: temperature,
+        max_tokens: 1500
+      });
+
+      // Generate the takeaway section
+      const takeawayResponse = await openai.chat.completions.create({
+        model: model,
+        messages: [
+          { role: "system", content: systemMessage },
+          { role: "user", content: `${prompt}\n\nPlease create ONLY the 45-second TAKEAWAY section of the script.` }
+        ],
+        temperature: temperature,
+        max_tokens: 500
+      });
+
+      // Extract the sections
+      const hook = hookResponse.choices[0].message.content || '';
+      const insight = insightResponse.choices[0].message.content || '';
+      const takeaway = takeawayResponse.choices[0].message.content || '';
+
+      // Calculate word count
+      const fullScript = `${hook}\n\n${insight}\n\n${takeaway}`;
+      const wordCount = fullScript.split(/\s+/).length;
+
+      // Generate AI rating and feedback
+      const ratingResponse = await openai.chat.completions.create({
+        model: "gpt-4-turbo-preview",
+        messages: [
+          { 
+            role: "system", 
+            content: "You are an expert podcast script analyst who evaluates scripts based on content quality, structure, engagement, clarity, and pacing." 
+          },
+          { 
+            role: "user", 
+            content: `Please evaluate this ${duration}-minute podcast script on a scale of 1-5 for each category, where 5 is excellent. Provide brief, actionable feedback.\n\nSCRIPT:\n${fullScript}` 
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 500
+      });
+
+      // Extract ratings and feedback
+      const ratingText = ratingResponse.choices[0].message.content || '';
       
-      // Use a smaller model with smaller max tokens for faster generation
-  const completion = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo", // Use standard model, not 16k version
-    messages: [
-      {
-        role: "system",
-            content: "You are an expert podcast script writer. Create conversational, engaging, and informative podcast scripts. Format appropriately for the specified number of speakers."
-      },
-      {
-        role: "user",
-        content: prompt
-      }
-    ],
+      // Parse ratings (simple extraction - could be made more robust)
+      const contentRating = parseFloat(ratingText.match(/content.*?(\d+\.?\d*)/i)?.[1] || '4.5');
+      const structureRating = parseFloat(ratingText.match(/structure.*?(\d+\.?\d*)/i)?.[1] || '4.5');
+      const engagementRating = parseFloat(ratingText.match(/engagement.*?(\d+\.?\d*)/i)?.[1] || '4.5');
+      const clarityRating = parseFloat(ratingText.match(/clarity.*?(\d+\.?\d*)/i)?.[1] || '4.5');
+      const pacingRating = parseFloat(ratingText.match(/pacing.*?(\d+\.?\d*)/i)?.[1] || '4.5');
+      
+      // Calculate overall rating
+      const overall = (contentRating + structureRating + engagementRating + clarityRating + pacingRating) / 5;
+
+      // Extract improvement points
+      const improvements = ratingText.includes('improvements') ? 
+        ratingText.split('improvements')[1].split('\n').filter(line => line.trim().length > 0 && line.includes('-')).map(line => line.replace(/^-\s*/, '').trim()) : 
+        [];
+
+      // Return structured script with metadata
+      return NextResponse.json({
+        script: {
+          hook,
+          insight,
+          takeaway
+        },
+        wordCount,
+        metadata: {
+          duration,
+          type: 'expert_insight',
+          sections: [
+            { type: 'hook', duration: 15 },
+            { type: 'insight', duration: duration * 60 - 60 },
+            { type: 'takeaway', duration: 45 }
+          ]
+        },
+        rating: {
+          overall: parseFloat(overall.toFixed(1)),
+          categories: {
+            content: contentRating,
+            structure: structureRating,
+            engagement: engagementRating,
+            clarity: clarityRating,
+            pacing: pacingRating
+          },
+          feedback: {
+            strengths: [
+              'Expert perspective',
+              'Clear structure',
+              'Engaging delivery',
+              'Actionable takeaways',
+              'Professional tone'
+            ],
+            improvements
+          }
+        }
+      });
+    } else {
+      // Legacy: Handle regular script generation
+      const response = await openai.chat.completions.create({
+        model: "gpt-4-turbo-preview",
+        messages: [
+          { 
+            role: "system", 
+            content: `You are an expert podcast scriptwriter creating a ${duration}-minute podcast script for ${memberCount} speakers.` 
+          },
+          { 
+            role: "user", 
+            content: `Create a podcast script about ${topic} based on this outline: ${JSON.stringify(outline)}. The script should be ${duration} minutes long for ${memberCount} speakers.` 
+          }
+        ],
         temperature: 0.7,
-        // Use smaller max tokens to ensure faster response
-        max_tokens: Math.min(2000, calculateMaxTokens(Math.min(300, targetWordCount.max))),
-      }).finally(() => clearTimeout(timeoutId));
+        max_tokens: 2000
+      });
 
-      const script = completion.choices[0].message.content || '';
-      return NextResponse.json({ script });
-    } catch (openaiError: unknown) {
-      console.error('OpenAI API error:', openaiError);
-      
-      // Check for abort error (timeout)
-      if (openaiError instanceof Error && openaiError.name === 'AbortError') {
-        console.log('API request timed out, using fallback script generator');
-      }
-      
-      // Use fallback script generator for any OpenAI errors
-      const fallbackScript = generateFallbackScript(
-        outlineTitle,
-        sections,
-      duration, 
-        memberCount,
-        userReferences
-      );
-      return NextResponse.json({ 
-        script: fallbackScript,
-        notice: 'Using generated script due to API limitations'
+      return NextResponse.json({
+        script: response.choices[0].message.content
       });
     }
   } catch (error) {
-    console.error('Script generation error:', error);
-    
-    // Extract title and sections from the error for fallback
-    let title = 'Podcast Script';
-    let sections: Array<{title: string, points?: string[]}> = [];
-    let duration = 15;
-    let memberCount = 1;
-    
-    try {
-      // Try to extract information from the failed request for fallback
-      if (error instanceof Error && error.cause && typeof error.cause === 'object') {
-        const body = error.cause as Record<string, unknown>;
-        if (body.outline && typeof body.outline === 'object') {
-          const outline = body.outline as Record<string, unknown>;
-          if (outline.title && typeof outline.title === 'string') {
-            title = outline.title;
-          }
-          if (outline.sections && Array.isArray(outline.sections)) {
-            sections = outline.sections as Array<{title: string, points?: string[]}>;
-          }
-        }
-        if (body.duration && typeof body.duration === 'number') {
-          duration = body.duration;
-        }
-        if (body.memberCount && typeof body.memberCount === 'number') {
-          memberCount = body.memberCount;
-        }
-      }
-    } catch (extractError) {
-      console.error('Error extracting fallback data:', extractError);
-    }
-    
-    const fallbackScript = generateFallbackScript(title, sections, duration, memberCount);
-
-    return NextResponse.json({
-      script: fallbackScript,
-      notice: 'Using generated script due to server error'
-    }, { status: 200 }); // Return 200 to avoid cascading errors
+    console.error('Error generating script:', error);
+    return NextResponse.json(
+      { error: 'Failed to generate script' },
+      { status: 500 }
+    );
   }
 }
 
-// Helper function to create the script prompt
-function createScriptPrompt(
+interface Section {
+  title: string;
+  points?: string[];
+}
+
+interface Reference {
+  id: string;
+  type: string;
+  content: string;
+  source?: string;
+}
+
+interface SelectedPoint {
+  sectionIndex: number;
+  pointIndex: number;
+  text: string;
+  elaboration?: string;
+  promptType?: string;
+}
+
+async function generateSequentialScript(
+  openai: OpenAI,
   title: string,
-  sections: Array<{title: string, points?: string[]}>,
-  selectedPoints: Array<{
-    sectionIndex: number;
-    pointIndex: number;
-    text: string;
-    elaboration?: string;
-    promptType?: string;
-  }>,
+  sections: Section[],
+  selectedPoints: SelectedPoint[],
   duration: number,
   memberCount: number,
   personalExperiences: string[],
-  userReferences: Array<{
-    id: string;
-    type: string;
-    content: string;
-    source?: string;
-  }>,
-  targetWordCount: { min: number, max: number }
+  userReferences: Reference[],
+  targetWordCount: { min: number; max: number }
 ) {
-  // Format sections and selected points - limit size of input to reduce token usage
-  const formattedSections = sections.map((section, index) => {
-    const sectionPoints = selectedPoints
-      .filter(point => point.sectionIndex === index)
-      .slice(0, 3) // Limit to 3 points per section to reduce token count
-      .map(point => {
-        let pointText = `- ${point.text}`;
-        if (point.elaboration) {
-          pointText += ` (${point.elaboration.substring(0, 100)})`;
+  // Generate introduction first
+  const introPrompt = createIntroPrompt(title, sections, memberCount);
+  const introCompletion = await openai.chat.completions.create({
+    model: "gpt-3.5-turbo",
+    messages: [
+      {
+        role: "system",
+        content: "You are an expert podcast script writer. Create a natural and engaging introduction that sets up the topic and speakers."
+      },
+      {
+        role: "user",
+        content: introPrompt
+      }
+    ],
+    temperature: 0.7,
+    max_tokens: 500,
+  });
+
+  let fullScript = introCompletion.choices[0].message.content || '';
+  fullScript += '\n\n';
+
+  // Generate each section sequentially with context from previous sections
+  for (let i = 0; i < sections.length; i++) {
+    const section = sections[i];
+    const prevSection = i > 0 ? sections[i - 1] : null;
+    const nextSection = i < sections.length - 1 ? sections[i + 1] : null;
+
+    // Calculate references for this section
+    const sectionReferences = distributeSectionReferences(userReferences, i, sections.length);
+    const sectionPoints = selectedPoints.filter(p => p.sectionIndex === i);
+
+    const sectionPrompt = createSectionPrompt(
+      title,
+      section,
+      prevSection,
+      nextSection,
+      sectionPoints,
+      memberCount,
+      sectionReferences,
+      personalExperiences,
+      fullScript // Pass current script for context
+    );
+
+    const sectionCompletion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert podcast script writer. Create a natural flowing section that connects well with the previous content and leads into the next section."
+        },
+        {
+          role: "user",
+          content: sectionPrompt
         }
-        if (point.promptType) {
-          pointText += ` [As ${point.promptType.replace('_', ' ')}]`;
-        }
-        return pointText;
-      })
-      .join('\n');
+      ],
+      temperature: 0.7,
+      max_tokens: Math.min(1000, calculateMaxTokens(targetWordCount.max / sections.length)),
+    });
 
-    return `## ${section.title}\n${sectionPoints || '- Key points for this section'}`;
-  }).join('\n\n');
+    fullScript += sectionCompletion.choices[0].message.content || '';
+    fullScript += '\n\n';
+  }
 
-  // Format references (news articles and facts) - limit to 3 of each
-  const newsArticles = userReferences
-    .filter(ref => ref.type === 'article')
-    .slice(0, 3)
-    .map(article => `- ${article.content}${article.source ? ` (${article.source})` : ''}`)
-    .join('\n');
+  // Generate conclusion
+  const conclusionPrompt = createConclusionPrompt(title, sections, memberCount, fullScript);
+  const conclusionCompletion = await openai.chat.completions.create({
+    model: "gpt-3.5-turbo",
+    messages: [
+      {
+        role: "system",
+        content: "You are an expert podcast script writer. Create a natural and engaging conclusion that wraps up all the main points discussed."
+      },
+      {
+        role: "user",
+        content: conclusionPrompt
+      }
+    ],
+    temperature: 0.7,
+    max_tokens: 500,
+  });
 
-  const facts = userReferences
-    .filter(ref => ref.type === 'factoid' || ref.type === 'stat')
-    .slice(0, 3)
-    .map(fact => `- ${fact.content}${fact.source ? ` (${fact.source})` : ''}`)
-    .join('\n');
+  fullScript += conclusionCompletion.choices[0].message.content || '';
 
-  // Format personal experiences - limit to 2
-  const experiences = personalExperiences.length > 0
-    ? personalExperiences.slice(0, 2).map(exp => `- ${exp}`).join('\n')
-    : 'No personal experiences provided';
+  return fullScript;
+}
 
-  // Create a more concise prompt
-  return `
-# Podcast Script: ${title}
+function createIntroPrompt(title: string, sections: Section[], memberCount: number) {
+  return `Create a natural podcast introduction for a ${memberCount}-person discussion about "${title}".
+The podcast will cover the following sections: ${sections.map(s => s.title).join(', ')}.
+Format the script with speaker labels (HOST, ${memberCount > 1 ? 'GUEST 1, GUEST 2, etc.' : ''}).
+Make it engaging and set up expectations for what will be discussed.`;
+}
 
-## Format Instructions
-- ${duration}-minute podcast for ${memberCount} speaker${memberCount > 1 ? 's' : ''}
-- Target length: ${targetWordCount.min}-${targetWordCount.max} words
-- Use speaker labels: ${memberCount === 1 ? 'HOST' : 'HOST, GUEST 1, GUEST 2, etc.'}
-- Include intro, sections, and conclusion
+function createSectionPrompt(
+  title: string,
+  currentSection: Section,
+  prevSection: Section | null,
+  nextSection: Section | null,
+  sectionPoints: SelectedPoint[],
+  memberCount: number,
+  references: Reference[],
+  personalExperiences: string[],
+  currentScript: string
+) {
+  const prompt = `Continue the podcast script about "${title}" with the section "${currentSection.title}".
+Current speakers: HOST${memberCount > 1 ? ', ' + Array.from({length: memberCount - 1}, (_, i) => `GUEST ${i + 1}`).join(', ') : ''}.
 
-## Content
-${formattedSections}
+${prevSection ? `Previous section was about "${prevSection.title}".` : ''}
+${nextSection ? `Next section will be about "${nextSection.title}".` : ''}
 
-## References
-${newsArticles || 'No news articles'}
+Key points to cover:
+${sectionPoints.map(p => `- ${p.text}`).join('\n')}
 
-${facts || 'No facts'}
+References to incorporate:
+${references.map(r => `- ${r.content}`).join('\n')}
 
-${experiences}
+${personalExperiences.length > 0 ? `Personal experiences to weave in:
+${personalExperiences.join('\n')}` : ''}
 
-## Guidelines
-- Conversational tone
-- Include facts where relevant
-- Simple intro and conclusion
-`;
+Create a natural flowing conversation that:
+1. Transitions smoothly from the previous section (if applicable)
+2. Covers the key points while maintaining a conversational tone
+3. Incorporates references and experiences naturally
+4. Sets up the next section (if applicable)
+
+Current script context (last 200 characters):
+${currentScript.slice(-200)}`;
+
+  return prompt;
+}
+
+function createConclusionPrompt(title: string, sections: Section[], memberCount: number, currentScript: string) {
+  return `Create a natural conclusion for the podcast about "${title}".
+Speakers: HOST${memberCount > 1 ? ', ' + Array.from({length: memberCount - 1}, (_, i) => `GUEST ${i + 1}`).join(', ') : ''}.
+
+Summarize the main points discussed:
+${sections.map(s => `- ${s.title}`).join('\n')}
+
+Current script context (last 200 characters):
+${currentScript.slice(-200)}
+
+Create a conclusion that:
+1. Naturally wraps up the discussion
+2. Summarizes key takeaways
+3. Ends on an engaging note
+4. Thanks the listeners and any guests`;
+}
+
+function distributeSectionReferences(references: Reference[], sectionIndex: number, totalSections: number) {
+  // Distribute references evenly across sections while maintaining narrative flow
+  const referencesPerSection = Math.ceil(references.length / totalSections);
+  const start = sectionIndex * referencesPerSection;
+  const end = Math.min(start + referencesPerSection, references.length);
+  return references.slice(start, end);
 }
 
 // Helper function to calculate max tokens based on target word count

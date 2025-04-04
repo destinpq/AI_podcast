@@ -22,7 +22,33 @@ import { useAuth } from '@/providers/AuthProvider';
 // Import Image component with No SSR to prevent hydration mismatch
 const NoSSRImage = dynamic(() => import('next/image'), { ssr: false });
 
-export default function LoginPage() {
+// This wrapper ensures the login page only renders on the client
+const ClientOnlyLoginPage = ({ children }: { children: React.ReactNode }) => {
+  const [isMounted, setIsMounted] = useState(false);
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  
+  if (!isMounted) {
+    return (
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '100vh',
+        backgroundColor: '#f5f7fa' 
+      }}>
+        <CircularProgress size={50} thickness={4} />
+      </Box>
+    );
+  }
+  
+  return <>{children}</>;
+};
+
+// Main login page component
+function LoginPageContent() {
   const router = useRouter();
   const { signIn, signUp, user, loading: authLoading, configError } = useAuth();
   const [email, setEmail] = useState('');
@@ -31,24 +57,15 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  
-  // Set mounted state after component mounts to prevent hydration issues
-  useEffect(() => {
-    setMounted(true);
-  }, []);
   
   // Fix the redirect logic to prevent loops with robust checks
   useEffect(() => {
-    // Only redirect if:
-    // 1. Component is mounted (client-side)
-    // 2. Auth is not loading (finished checking)
-    // 3. User exists (is authenticated)
-    if (mounted && !authLoading && user) {
+    // Only redirect if auth is not loading and user exists
+    if (!authLoading && user) {
       // Use router.replace instead of push to avoid browser history issues
       router.replace('/dashboard/ai-tools/script-writer');
     }
-  }, [user, router, authLoading, mounted]);
+  }, [user, router, authLoading]);
   
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +109,7 @@ export default function LoginPage() {
   };
   
   // If we're loading from authentication, show a loading spinner
-  if (!mounted || authLoading) {
+  if (authLoading) {
     return (
       <Box sx={{ 
         display: 'flex', 
@@ -198,17 +215,20 @@ export default function LoginPage() {
             </Box>
             
             <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-              <NoSSRImage 
-                src="/podcast-illustration.svg" 
-                alt="Podcast illustration" 
-                style={{ 
-                  maxWidth: '90%',
-                  height: 'auto',
-                  filter: 'drop-shadow(0px 10px 20px rgba(0,0,0,0.1))'
-                }}
-                width={500}
-                height={300}
-              />
+              {/* We use NoSSRImage to prevent hydration mismatch - this will only render on client */}
+              {typeof window !== 'undefined' && (
+                <NoSSRImage 
+                  src="/podcast-illustration.svg" 
+                  alt="Podcast illustration" 
+                  style={{ 
+                    maxWidth: '90%',
+                    height: 'auto',
+                    filter: 'drop-shadow(0px 10px 20px rgba(0,0,0,0.1))'
+                  }}
+                  width={500}
+                  height={300}
+                />
+              )}
             </Box>
           </Grid>
           
@@ -395,5 +415,14 @@ export default function LoginPage() {
         </Grid>
       </Container>
     </Box>
+  );
+}
+
+// Export with client-only wrapper to prevent hydration issues
+export default function LoginPage() {
+  return (
+    <ClientOnlyLoginPage>
+      <LoginPageContent />
+    </ClientOnlyLoginPage>
   );
 }
