@@ -12,16 +12,16 @@ services:
     dockerfile_path: Dockerfile # We'll add a Dockerfile for better control (Optional but recommended)
     # build_command: npm run build # Alternative if not using Dockerfile
     # run_command: npm run start:prod # Alternative if not using Dockerfile
-    http_port: 3001
+    http_port: 7778
     instance_size_slug: basic-xs # Choose an appropriate size
     instance_count: 1
     routes:
       - path: / # Expose backend at the root of its subdomain
     envs:
       - key: PORT
-        value: "3001"
+        value: "7778"
       - key: CLIENT_URL
-        value: "UPDATE_WITH_FRONTEND_URL" # Placeholder - UPDATE IN UI LATER
+        value: "${APP_URL}" # Will use the frontend URL automatically
       - key: OPENAI_API_KEY
         value: "ADD_SECRET_IN_UI" # Placeholder - ADD SECRET IN UI LATER
         type: SECRET
@@ -43,7 +43,7 @@ services:
       - path: / # Expose frontend at the root of its subdomain
     envs:
       - key: NEXT_PUBLIC_BACKEND_URL
-        value: "UPDATE_WITH_BACKEND_URL" # Placeholder - UPDATE IN UI LATER
+        value: "https://shark-app-fg9yo.ondigitalocean.app" # Updated with actual backend URL
       - key: NEXT_PUBLIC_FIREBASE_API_KEY
         value: "YOUR_FIREBASE_API_KEY" # Replace or set in UI
       - key: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN

@@ -15,7 +15,7 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
     }
 
     // Call backend API
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7778';
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://shark-app-fg9yo.ondigitalocean.app';
     
     try {
       const response = await fetch(`${backendUrl}/prompts/generate`, {
