@@ -23,24 +23,71 @@
 
 # AI Podcast Backend
 
-NestJS backend to handle AI generation tasks.
+This is the backend service for the AI Podcast application, built with NestJS.
 
-## Running the app
+## Requirements
 
-```bash
-# development
-npm run start:dev
-
-# production mode
-npm run start:prod
-```
+- Node.js 20 or later
+- npm 9 or later
+- Docker (for containerized deployment)
 
 ## Environment Variables
 
-Create a `.env` file with:
-- `PORT`: Port number (e.g., 3001)
-- `OPENAI_API_KEY`: Your OpenAI key
-- `CLIENT_URL`: The URL of the frontend (e.g., http://localhost:3000)
+Create a `.env` file in the backend directory with the following variables:
+
+```
+PORT=7778
+OPENAI_API_KEY=your_openai_api_key_here
+```
+
+## Local Development
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run start:dev
+```
+
+## Production Build
+
+```bash
+# Build the application
+npm run build
+
+# Start production server
+npm run start:prod
+```
+
+## Docker Deployment
+
+```bash
+# Build and run with Docker
+docker build -t ai-podcast-backend .
+docker run -p 7778:7778 --env-file .env ai-podcast-backend
+
+# Or use Docker Compose
+docker-compose up -d
+```
+
+## API Endpoints
+
+- `/script` - Generate podcast scripts
+- `/outline` - Generate podcast outlines
+- `/prompts` - Generate prompts for script creation
+- `/facts` - Generate facts for podcast content
+- `/news` - Generate news summaries for podcast content
+
+## Testing
+
+```bash
+# Run tests
+npm test
+
+# Run e2e tests
+npm run test:e2e
+```
 
 ## Description
 

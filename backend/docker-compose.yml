@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "7778:7778"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=7778
+    restart: unless-stopped 

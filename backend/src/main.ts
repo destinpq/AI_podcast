@@ -6,7 +6,7 @@ import { ConfigService } from '@nestjs/config';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
-  const port = 7778; // Explicitly using port 7778 for backend
+  const port = configService.get<number>('PORT') || 7778; // Get PORT from env or use 7778 as fallback
   const clientUrl =
     configService.get<string>('CLIENT_URL') || 'http://localhost:7777'; // Update default client URL to 7777
 
