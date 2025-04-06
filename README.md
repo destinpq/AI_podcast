@@ -85,3 +85,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - OpenAI for providing the API for script generation
 - Firebase for authentication and database services
 - Vercel for hosting the application
+# AI_podcast
