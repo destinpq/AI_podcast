@@ -8,10 +8,8 @@ services:
       repo: https://github.com/pratikk94/ai_podcast.git # Your repo URL
       branch: main
       deploy_on_push: true
-    source_dir: /backend
-    dockerfile_path: Dockerfile # We'll add a Dockerfile for better control (Optional but recommended)
-    # build_command: npm run build # Alternative if not using Dockerfile
-    # run_command: npm run start:prod # Alternative if not using Dockerfile
+    build_command: cd backend && npm install && npm run build
+    run_command: cd backend && npm run start:prod
     http_port: 7778
     instance_size_slug: basic-xs # Choose an appropriate size
     instance_count: 1
@@ -25,6 +23,8 @@ services:
       - key: OPENAI_API_KEY
         value: "ADD_SECRET_IN_UI" # Placeholder - ADD SECRET IN UI LATER
         type: SECRET
+      - key: NODE_ENV
+        value: "production"
       # Add any other backend-specific env vars here
 
   # Frontend Next.js Service
@@ -33,8 +33,7 @@ services:
       repo: https://github.com/pratikk94/ai_podcast.git # Your repo URL
       branch: main
       deploy_on_push: true
-    source_dir: /
-    build_command: npm run build:frontend
+    build_command: npm install && npm run build:frontend
     run_command: npm run start:frontend
     http_port: 3000
     instance_size_slug: basic-xs # Choose an appropriate size
@@ -42,22 +41,28 @@ services:
     routes:
       - path: / # Expose frontend at the root of its subdomain
     envs:
+      - key: PORT
+        value: "3000"
       - key: NEXT_PUBLIC_BACKEND_URL
         value: "https://shark-app-fg9yo.ondigitalocean.app" # Updated with actual backend URL
       - key: NEXT_PUBLIC_FIREBASE_API_KEY
-        value: "YOUR_FIREBASE_API_KEY" # Replace or set in UI
+        value: "AIzaSyCfNYW6t7mGLzxgg_opsFA9ZtvxUW6N0C8"
       - key: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-        value: "YOUR_FIREBASE_AUTH_DOMAIN" # Replace or set in UI
+        value: "ai-tracker-90ce0.firebaseapp.com"
       - key: NEXT_PUBLIC_FIREBASE_DATABASE_URL
-        value: "YOUR_FIREBASE_DATABASE_URL" # Replace or set in UI
+        value: "https://ai-tracker-90ce0-default-rtdb.firebaseio.com"
       - key: NEXT_PUBLIC_FIREBASE_PROJECT_ID
-        value: "YOUR_FIREBASE_PROJECT_ID" # Replace or set in UI
+        value: "ai-tracker-90ce0"
       - key: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-        value: "YOUR_FIREBASE_STORAGE_BUCKET" # Replace or set in UI
+        value: "ai-tracker-90ce0.firebasestorage.app"
       - key: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-        value: "YOUR_FIREBASE_MESSAGING_SENDER_ID" # Replace or set in UI
+        value: "954189815072"
       - key: NEXT_PUBLIC_FIREBASE_APP_ID
-        value: "YOUR_FIREBASE_APP_ID" # Replace or set in UI
+        value: "1:954189815072:web:98d57df0f28bdfb50d4b45"
       - key: NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
-        value: "YOUR_FIREBASE_MEASUREMENT_ID" # Replace or set in UI
+        value: "G-Y294P6WKYP"
+      - key: NODE_ENV
+        value: "production"
+      - key: NEXT_DISABLE_ESLINT
+        value: "1"
       # Note: NEXT_PUBLIC_* vars should have type: GENERAL (default) 

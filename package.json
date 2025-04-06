@@ -2,16 +2,19 @@
   "name": "ai-podcast",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev:frontend": "next dev -p 7777",
     "dev:backend": "cd backend && npm run start:dev",
     "dev": "concurrently \"npm:dev:frontend\" \"npm:dev:backend\"",
     "build:frontend": "NEXT_DISABLE_ESLINT=1 next build --no-lint",
-    "build:backend": "cd backend && npm run build",
-    "build": "npm run build:frontend && npm run build:backend",
-    "start:frontend": "next start",
+    "build:backend": "cd backend && npm install && npm run build",
+    "build": "npm install && npm run build:frontend && npm run build:backend",
+    "start:frontend": "next start -p $PORT",
     "start:backend": "cd backend && npm run start:prod",
-    "start": "concurrently \"npm:start:frontend\" \"npm:start:backend\"",
+    "start": "npm run start:frontend",
     "lint": "next lint",
     "deploy": "vercel deploy --prod"
   },
