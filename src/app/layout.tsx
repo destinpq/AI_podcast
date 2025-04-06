@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import MuiProvider from "./components/MuiProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
+import Script from "next/script";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,6 +25,7 @@ export default function RootLayout({
             {children}
           </AuthProvider>
         </MuiProvider>
+        <Script src="/closePopup.js" strategy="afterInteractive" />
       </body>
     </html>
   );

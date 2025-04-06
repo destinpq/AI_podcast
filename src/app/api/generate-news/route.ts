@@ -1,104 +1,11 @@
-import { NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import { NextRequest, NextResponse } from 'next/server';
 
-// Generate news articles for a topic using OpenAI
-async function generateAINews(topic: string): Promise<{ title: string, content: string }[]> {
+export async function POST(req: NextRequest) {
   try {
-    // If we're in demo mode without an API key, return mock data
-    if (process.env.OPENAI_API_KEY === 'invalid-key') {
-      return [
-        {
-          title: `Breaking: New developments in ${topic} shake up the industry`,
-          content: `Recent innovations in ${topic} are causing major shifts in how businesses approach their strategies. Experts suggest this could lead to unprecedented growth.`
-        },
-        {
-          title: `${topic} experts reveal surprising insights in new study`,
-          content: `A comprehensive study published this week unveiled several unexpected findings about ${topic}, challenging conventional wisdom and opening new avenues for research.`
-        },
-        {
-          title: `How ${topic} is transforming daily life around the world`,
-          content: `From urban centers to rural communities, ${topic} technologies are creating remarkable changes in how people live, work, and interact with their environments.`
-        },
-        {
-          title: `The future of ${topic}: Predictions from leading analysts`,
-          content: `Industry analysts have released their projections for the next decade of ${topic} development, highlighting opportunities for innovation and potential challenges.`
-        }
-      ];
-    }
+    const body = await req.json();
+    const { topic } = body;
 
-    // Generate news with OpenAI
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: "You are a helpful assistant that generates fictional news article summaries for podcasters to discuss. Provide 5 article summaries relevant to the topic. RESPOND ONLY WITH VALID JSON in this format: { \"articles\": [ { \"title\": \"Article Title\", \"content\": \"Brief summary of article content\" } ] }. Do not include any other text outside of the JSON."
-        },
-        {
-          role: "user",
-          content: `Generate 5 fictional news article summaries about: ${topic}. Make the titles engaging and the summaries informative but brief. RESPOND WITH VALID JSON ONLY.`
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 800,
-    });
-
-    console.log('OpenAI response:', completion.choices[0].message.content);
-    
-    // Get the content from the completion
-    const content = completion.choices[0].message.content?.trim() || '';
-    
-    // Check if content starts and ends with JSON brackets
-    if (!content.startsWith('{') || !content.endsWith('}')) {
-      console.error('Invalid JSON format received from OpenAI:', content);
-      // Try to extract JSON from the response if possible
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const extractedJSON = jsonMatch[0];
-        console.log('Extracted JSON from response:', extractedJSON);
-        try {
-          const parsedResponse = JSON.parse(extractedJSON);
-          return parsedResponse.articles || [];
-        } catch (parseError) {
-          console.error('Failed to parse extracted JSON:', parseError);
-          // Return a fallback response
-          return [
-            { title: `Latest news about ${topic}`, content: "We're experiencing issues retrieving news. Please try again." }
-          ];
-        }
-      }
-      
-      // If no JSON could be extracted, return fallback
-      return [
-        { title: `Latest news about ${topic}`, content: "We're experiencing issues retrieving news. Please try again." }
-      ];
-    }
-    
-    try {
-      const parsedResponse = JSON.parse(content);
-      return parsedResponse.articles || [];
-    } catch (parseError) {
-      console.error('Error parsing JSON:', parseError, 'Content:', content);
-      return [
-        { title: `Latest news about ${topic}`, content: "We're experiencing issues retrieving news. Please try again." }
-      ];
-    }
-  } catch (error) {
-    console.error('Error generating news with OpenAI:', error);
-    return [
-      { title: `News about ${topic}`, content: "We're experiencing issues retrieving news. Please try again." }
-    ];
-  }
-}
-
-export async function POST(request: Request) {
-  try {
-    const { topic } = await request.json();
-    
+    // Validate required parameters
     if (!topic) {
       return NextResponse.json(
         { error: 'Topic is required' },
@@ -106,13 +13,28 @@ export async function POST(request: Request) {
       );
     }
 
-    const news = await generateAINews(topic);
-    
-    return NextResponse.json({ news });
-  } catch (error) {
-    console.error('Error in generate-news API route:', error);
+    // Call backend API
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+    const response = await fetch(`${backendUrl}/news/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ topic }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Failed with status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return NextResponse.json(data);
+  } catch (error: unknown) {
+    console.error('Error generating news:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to generate news';
     return NextResponse.json(
-      { error: 'Failed to generate news' },
+      { error: errorMessage },
       { status: 500 }
     );
   }

@@ -6,6 +6,18 @@
 .pnp.js
 .yarn/install-state.gz
 
+# NestJS backend
+/backend/node_modules
+/backend/node_modules/**
+/backend/dist
+/backend/.env
+/backend/.env.local
+/backend/.env.*.local
+/backend/.env.development.local
+/backend/.env.test.local
+/backend/.env.production.local
+/backend/coverage
+
 # testing
 /coverage
 
@@ -28,6 +40,9 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+.env.production
+.env.development
+.env.test
 
 # vercel
 .vercel
@@ -69,3 +84,7 @@ logs
 
 # Yarn Integrity file
 .yarn-integrity
+
+# Explicitly ignore all node_modules everywhere
+**/node_modules/
+**/node_modules/**

@@ -9,9 +9,9 @@ import {
   Box,
   Typography,
   Button,
-  Chip,
 } from '@mui/material';
 import { Article as ArticleIcon } from '@mui/icons-material';
+import MarkdownRenderer from './MarkdownRenderer';
 
 interface PromptPreviewDialogProps {
   showPromptPreview: boolean;
@@ -62,41 +62,7 @@ const PromptPreviewDialog: React.FC<PromptPreviewDialogProps> = ({
             fontSize: { xs: '0.75rem', sm: '0.875rem' }
           }}
         >
-          {promptPreview.split('\n').map((line, index) => (
-            <Box key={index} sx={{ pb: 1 }}>
-              {line.startsWith('## ') ? (
-                <Typography variant="subtitle1" fontWeight="bold" sx={{ color: 'primary.main', mt: 2 }}>
-                  {line.substring(3)}
-                </Typography>
-              ) : line.startsWith('# ') ? (
-                <Typography variant="h6" fontWeight="bold" sx={{ color: 'secondary.main', mb: 1 }}>
-                  {line.substring(2)}
-                </Typography>
-              ) : line.startsWith('- ') ? (
-                <Box sx={{ display: 'flex', pl: 2 }}>
-                  <Box sx={{ pr: 1 }}>•</Box>
-                  <Box>
-                    {line.substring(2).split(/(\[Source: .*?\])/).map((part, i) => (
-                      part.startsWith('[Source:') ? (
-                        <Chip
-                          key={i}
-                          label={part.replace(/^\[Source: |\]$/g, '')} 
-                          size="small" 
-                          color="info"
-                          variant="outlined"
-                          sx={{ ml: 1, fontSize: '0.7rem' }}
-                        />
-                      ) : (
-                        <span key={i}>{part}</span>
-                      )
-                    ))}
-                  </Box>
-                </Box>
-              ) : (
-                <Typography variant="body2">{line}</Typography>
-              )}
-            </Box>
-          ))}
+          <MarkdownRenderer content={promptPreview} />
         </Box>
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
