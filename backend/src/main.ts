@@ -8,7 +8,7 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   
   // Get configuration
-  const port = configService.get<number>('PORT') || 7778; // Get PORT from env or use 7778 as fallback
+  const port = configService.get<number>('PORT') || 7779; // Get PORT from env or use 7779 as fallback
   const clientUrl =
     configService.get<string>('CLIENT_URL') || 'https://king-prawn-app-npvka.ondigitalocean.app'; // Update default client URL
   
