@@ -2,6 +2,22 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 
+interface PromptGenerationParams {
+  topic: string;
+  mood: string;
+  duration: number;
+}
+
+// Define the expected structure of the JSON response
+interface GeneratedPrompts {
+  researchPrompt: string;
+  structurePrompt: string;
+  introPrompt: string;
+  segmentPrompts: string[];
+  factCheckPrompt: string;
+  conclusionPrompt: string;
+}
+
 @Injectable()
 export class PromptsService {
   private openai: OpenAI;
@@ -12,104 +28,89 @@ export class PromptsService {
     });
   }
 
-  async generatePrompts(params: {
-    topic: string;
-    duration: number;
-    memberCount: number;
-    style: string;
-    format: string;
-    requirements: string;
-  }) {
-    const { topic, duration, memberCount, style, format, requirements } = params;
+  async generatePrompts(
+    params: PromptGenerationParams,
+  ): Promise<GeneratedPrompts> {
+    const { topic, mood, duration } = params;
 
-    if (!topic || !duration || !memberCount || !style || !format) {
-      throw new Error('Missing required parameters');
+    if (!topic || !mood || !duration) {
+      throw new Error('Missing required parameters: topic, mood, and duration');
     }
 
-    // Define style-specific instructions
-    let styleInstruction = '';
-    if (style === 'expert') {
-      styleInstruction = 'Provide detailed, authoritative insights that showcase deep knowledge of the topic.';
-    } else if (style === 'storyteller') {
-      styleInstruction = 'Craft engaging narratives that captivate the audience and illustrate key points through stories.';
-    } else if (style === 'educator') {
-      styleInstruction = 'Explain concepts clearly, breaking down complex ideas into digestible parts for the audience.';
-    }
+    const metaPrompt = `
+      You are a master podcast producer and creative director.
+      Your task is to generate a detailed set of prompts for another AI (like yourself) to write a compelling podcast script.
+      The podcast topic is: "${topic}"
+      The desired mood is: "${mood}"
+      The target duration is approximately ${duration} minutes.
 
-    // Research summary prompt
-    const researchPrompt = [
-      {
-        role: 'system' as const,
-        content: 'You are a knowledgeable podcast research assistant.'
-      },
-      {
-        role: 'user' as const,
-        content: `I need a concise research summary for a ${duration}-minute podcast with ${memberCount} speakers about "${topic}". 
-        The podcast format is ${format}. ${styleInstruction}
-        ${requirements ? `Additional requirements: ${requirements}` : ''}
-        Provide a research summary with key facts, statistics, and background information that would be helpful for the podcast hosts.`
-      }
-    ];
+      Generate a JSON object containing specific prompts for the following podcast elements:
 
-    // Outline prompt
-    const outlinePrompt = [
-      {
-        role: 'system' as const,
-        content: 'You are a podcast content strategist who creates effective episode outlines.'
-      },
-      {
-        role: 'user' as const,
-        content: `I need an outline for a ${duration}-minute podcast with ${memberCount} speakers about "${topic}". 
-        The podcast format is ${format}. ${styleInstruction}
-        ${requirements ? `Additional requirements: ${requirements}` : ''}
-        Create a structured outline with sections for introduction, main discussion points, and conclusion. Include timing suggestions for each section.`
-      }
-    ];
+      1.  **Research Focus**: A prompt instructing the AI to conduct deep research, find stunning facts, relevant statistics, historical context, recent developments, and potential controversies related to the topic "${topic}". The research should support the specified mood: "${mood}".
+      2.  **Overall Structure**: A prompt defining a high-level outline or structure for the ${duration}-minute podcast. Consider the mood "${mood}" and topic "${topic}" when suggesting segments (e.g., intro, deep dive 1, emotional anecdote, expert insight, factual segment, listener question simulation, conclusion).
+      3.  **Introduction**: A prompt to write an engaging introduction (approx. 1-2 minutes) that grabs the listener, introduces the topic "${topic}", sets the mood "${mood}", and hints at the depth and variety of content to come.
+      4.  **Segment Prompts (Array)**: Generate an array of prompts, one for each main segment identified in the structure. Each prompt should instruct the AI to write that specific segment's script (e.g., 3-5 minutes each), incorporating:
+          *   The research findings.
+          *   Specific emotional tones fitting the overall mood "${mood}" (e.g., create a segment that evokes curiosity, another that is humorous, one that is serious and factual, one that is reflective or poignant). Ensure a mix of emotions is covered throughout the podcast.
+          *   Stunning facts or insightful statistics found during research.
+          *   Potentially different formats within segments (e.g., monologue, simulated dialogue, storytelling).
+      5.  **Fact Check/Verification**: A prompt instructing the AI to review the generated script segments, identify key factual claims, and suggest verification checks or sources.
+      6.  **Conclusion**: A prompt to write a memorable conclusion (approx. 1-2 minutes) that summarizes key takeaways, reinforces the mood "${mood}", and provides a satisfying closing thought or call to action related to "${topic}".
 
-    // Engagement prompt
-    const engagementPrompt = [
-      {
-        role: 'system' as const,
-        content: 'You are an expert at creating engaging hooks and questions for podcasts.'
-      },
-      {
-        role: 'user' as const,
-        content: `I need engaging hooks and questions for a ${duration}-minute podcast with ${memberCount} speakers about "${topic}". 
-        The podcast format is ${format}. ${styleInstruction}
-        ${requirements ? `Additional requirements: ${requirements}` : ''}
-        Generate 5 compelling hooks to start the episode and 10 thought-provoking questions to discuss during the podcast.`
-      }
-    ];
+      Ensure the generated prompts are clear, specific, and actionable for an AI scriptwriter. The final output MUST be a valid JSON object containing keys like "researchPrompt", "structurePrompt", "introPrompt", "segmentPrompts" (an array of strings), "factCheckPrompt", and "conclusionPrompt".
+    `;
 
     try {
-      // Generate research summary
-      const researchResponse = await this.openai.chat.completions.create({
+      const response = await this.openai.chat.completions.create({
         model: 'gpt-4',
-        messages: researchPrompt,
+        messages: [
+          {
+            role: 'system' as const,
+            content:
+              'You are a helpful assistant designed to generate structured prompts in JSON format based on user requirements.',
+          },
+          {
+            role: 'user' as const,
+            content: metaPrompt,
+          },
+        ],
+        response_format: { type: 'json_object' }, // Request JSON output
       });
-      const researchSummary = researchResponse.choices[0].message.content;
 
-      // Generate outline
-      const outlineResponse = await this.openai.chat.completions.create({
-        model: 'gpt-4',
-        messages: outlinePrompt,
-      });
-      const outline = outlineResponse.choices[0].message.content;
+      const jsonResponse = response.choices[0].message.content;
 
-      // Generate engagement hooks
-      const engagementResponse = await this.openai.chat.completions.create({
-        model: 'gpt-4',
-        messages: engagementPrompt,
-      });
-      const engagement = engagementResponse.choices[0].message.content;
+      if (!jsonResponse) {
+        throw new Error('OpenAI returned an empty response.');
+      }
 
-      return {
-        research: researchSummary,
-        outline: outline,
-        engagement: engagement,
-      };
-    } catch (error: any) {
-      throw new Error(`Failed to generate prompts: ${error.message}`);
+      // Attempt to parse the JSON response
+      try {
+        const parsedPrompts = JSON.parse(jsonResponse) as GeneratedPrompts; // Assert type
+        // Basic validation (can be expanded)
+        if (
+          !parsedPrompts.researchPrompt ||
+          !parsedPrompts.structurePrompt ||
+          !Array.isArray(parsedPrompts.segmentPrompts) ||
+          !parsedPrompts.introPrompt ||
+          !parsedPrompts.factCheckPrompt ||
+          !parsedPrompts.conclusionPrompt
+        ) {
+          throw new Error('Generated JSON is missing required prompt fields.');
+        }
+        return parsedPrompts; // Return the parsed JSON object
+      } catch (parseError) {
+        console.error('Failed to parse OpenAI JSON response:', jsonResponse);
+        const message =
+          parseError instanceof Error
+            ? parseError.message
+            : 'Unknown parsing error';
+        throw new Error(`Failed to parse generated prompts JSON: ${message}`);
+      }
+    } catch (error) {
+      console.error('Error calling OpenAI:', error);
+      const message =
+        error instanceof Error ? error.message : 'Unknown OpenAI error';
+      throw new Error(`Failed to generate prompts via OpenAI: ${message}`);
     }
   }
 } 
