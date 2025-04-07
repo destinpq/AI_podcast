@@ -12,9 +12,9 @@
     "build:frontend": "NEXT_DISABLE_ESLINT=1 next build --no-lint",
     "build:backend": "cd backend && npm install && npm run build",
     "build": "npm install && npm run build:frontend && npm run build:backend",
-    "start:frontend": "next start -p $PORT",
+    "start:frontend": "next start -p 7777",
     "start:backend": "cd backend && npm run start:prod",
-    "start": "npm run start:frontend",
+    "start": "concurrently \"npm:start:frontend\" \"npm:start:backend\"",
     "lint": "next lint",
     "deploy": "vercel deploy --prod"
   },
