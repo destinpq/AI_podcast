@@ -1,34 +1,32 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
+  
+  // Get configuration
   const port = configService.get<number>('PORT') || 7778; // Get PORT from env or use 7778 as fallback
   const clientUrl =
-    configService.get<string>('CLIENT_URL') || 'http://localhost:7777'; // Update default client URL to 7777
-
+    configService.get<string>('CLIENT_URL') || 'https://king-prawn-app-npvka.ondigitalocean.app'; // Update default client URL
+  
   // Enable CORS
   app.enableCors({
-    origin: [
-      clientUrl,
-      'https://ai-podcast-git-main-pratikk94s-projects.vercel.app',
-    ], // Allow your frontend origin
+    origin: clientUrl,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
-
-  // Enable validation globally
+  
+  // Enable global validation
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
     transform: true,
-    forbidNonWhitelisted: true,
   }));
-
+  
   await app.listen(port);
-  Logger.log(`🚀 Backend application is running on: http://localhost:${port}`);
-  Logger.log(`🔌 Allowing connections from: ${clientUrl}`);
+  console.log(`Application is running on: ${await app.getUrl()}`);
+  console.log(`Accepting requests from: ${clientUrl}`);
 }
 bootstrap();

@@ -37,7 +37,7 @@ function getOpenAIClient() {
 
 export const POST = withErrorHandling(async (request: Request) => {
   // Get backend URL from environment variable
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7778';
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://shark-app-fg9yo.ondigitalocean.app';
   const scriptEndpoint = `${backendUrl}/script/generate/short-form`;
 
   try {
