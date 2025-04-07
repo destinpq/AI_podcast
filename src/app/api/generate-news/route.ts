@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Call backend API
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://shark-app-fg9yo.ondigitalocean.app';
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7778';
     const response = await fetch(`${backendUrl}/news/generate`, {
       method: 'POST',
       headers: {

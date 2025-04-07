@@ -3,7 +3,7 @@ import { withErrorHandling } from '@/app/api/api-utils';
 
 export const POST = withErrorHandling(async (request: Request) => {
   // Get backend URL from environment variable
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://shark-app-fg9yo.ondigitalocean.app';
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7778';
   
   try {
     // Forward the request payload to the backend
@@ -24,6 +24,7 @@ export const POST = withErrorHandling(async (request: Request) => {
     if (!response.ok) {
       console.log(`Backend returned error ${response.status}. Using mock response.`);
       
+      // Extract payload details for mock response generation
       const topic = payload.topic || 'this topic';
       const duration = payload.duration || 15;
       
@@ -64,8 +65,8 @@ export const POST = withErrorHandling(async (request: Request) => {
   } catch (error) {
     console.error('Error in short-form script generation:', error);
     
-    // Return a mock response for development
-    const topic = 'this topic';
+    // Return a mock response for development (consider payload details)
+    const topic = 'this topic'; // Maybe try to get from payload if error occurs after parsing?
     const duration = 15;
     
     return NextResponse.json({
