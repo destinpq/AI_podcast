@@ -37,7 +37,6 @@ import ErrorBoundary from './components/ErrorBoundary';
 import AiRatingCard from './components/AiRatingCard';
 import UserRatingCard from './components/UserRatingCard';
 import GenerationLoading from './components/GenerationLoading';
-import PromptSelector from './components/PromptSelector';
 import SimplifiedPromptDialog from './components/SimplifiedPromptDialog';
 import MarkdownRenderer from './components/MarkdownRenderer';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -76,7 +75,7 @@ import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import DeleteIcon from '@mui/icons-material/Delete';
-import toast from 'react-hot-toast'; // Import toast for notifications
+import toast from 'react-hot-toast';
 
 // Custom connector for stepper with progress visualization
 const ProgressConnector = styled(StepConnector)(({ theme }) => ({
@@ -107,8 +106,8 @@ const ProgressConnector = styled(StepConnector)(({ theme }) => ({
 function TopicSelector({ 
   topic, 
   setTopic, 
-  mood, // Add mood state
-  setMood, // Add setMood function
+  mood,
+  setMood,
   duration, 
   setDuration, 
   memberCount, 
@@ -118,8 +117,8 @@ function TopicSelector({
 }: {
   topic: string;
   setTopic: (topic: string) => void;
-  mood: string; // Add mood prop type
-  setMood: (mood: string) => void; // Add setMood prop type
+  mood: string;
+  setMood: (mood: string) => void;
   duration: number;
   setDuration: (duration: string) => void;
   memberCount: number;
@@ -249,8 +248,8 @@ function TopicSelector({
         </Typography>
         <Select
           fullWidth
-          value={duration.toString()} // Corrected value
-          onChange={(e) => setDuration(e.target.value)} // Corrected onChange
+          value={duration.toString()}
+          onChange={(e) => setDuration(e.target.value)}
           disabled={loading}
         >
           <SelectMenuItem value="15">15 minutes</SelectMenuItem>
@@ -267,8 +266,8 @@ function TopicSelector({
         </Typography>
         <Select
           fullWidth
-          value={memberCount.toString()} // Corrected value
-          onChange={(e) => setMemberCount(e.target.value)} // Corrected onChange
+          value={memberCount.toString()}
+          onChange={(e) => setMemberCount(e.target.value)}
           disabled={loading}
         >
           <SelectMenuItem value="1">Solo</SelectMenuItem>
@@ -282,7 +281,7 @@ function TopicSelector({
         <Button
           variant="contained"
           onClick={onSubmit}
-          disabled={!topic || !mood || loading} // Added mood to disabled check
+          disabled={!topic || !mood || loading}
         >
           Continue
         </Button>
@@ -541,10 +540,9 @@ export default function ScriptWriter() {
     );
   }
 
-  // Define wizard steps
+  // Define updated wizard steps
   const steps = [
-    'Enter Topic',
-    'Select Prompt Styles',
+    'Enter Topic & Mood',
     'Review Prompts',
     'Final Review',
     'Generated Script',
@@ -566,18 +564,16 @@ export default function ScriptWriter() {
     }
   };
 
-  // Updated function to call the new prompts API
+  // Updated function to call the new prompts API and go to Review step
   const handleGeneratePrompts = async () => {
     setError(null);
     setLoading(true);
-    
     console.log('Calling API to generate prompts with:', { topic, mood, duration });
-    
     try {
-      const response = await fetch('/api/generate-prompts', { // Updated API endpoint
+      const response = await fetch('/api/generate-prompts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic, mood, duration }), // Send correct payload
+        body: JSON.stringify({ topic, mood, duration }),
       });
 
       if (!response.ok) {
@@ -588,17 +584,15 @@ export default function ScriptWriter() {
       }
 
       const promptsData: GeneratedPrompts = await response.json();
-      
-      // Validate the received data structure (basic)
       if (!promptsData || typeof promptsData !== 'object' || !promptsData.researchPrompt) {
         throw new Error('Invalid prompt data received from API.');
       }
       
-      setGeneratedPrompts(promptsData); // Store the structured prompts object
+      setGeneratedPrompts(promptsData);
       console.log('Received prompts:', promptsData);
       toast.success('Prompts generated successfully!');
       
-      setActiveStep(prevStep => prevStep + 1); // Move to next step (prompt review)
+      setActiveStep(1); // Go directly to Step 1 (Review Prompts)
       
     } catch (error) {
       console.error('Error generating prompts:', error);
@@ -610,11 +604,78 @@ export default function ScriptWriter() {
     }
   };
 
-  // TODO: Update handlePromptGenerate - this function might become obsolete or change role
-  const handlePromptGenerate = (/* prompts: string[] */) => {
-    // This logic needs rethinking based on the new workflow
-    // Maybe this step is skipped or becomes a confirmation step
-    setActiveStep(prevStep => prevStep + 1);
+  // Function to handle generating the final script (now triggered from Review step)
+  const handleGenerateFinalScript = async () => {
+    if (!generatedPrompts) {
+      setError('Cannot generate script without prompts.');
+      toast.error('Error: Prompts are missing.');
+      return;
+    }
+
+    setError(null);
+    setLoading(true);
+    setGenerationSteps([
+      { title: 'Generating Introduction', status: 'active', progress: 10 },
+      { title: 'Generating Segments', status: 'pending', progress: 0 },
+      { title: 'Generating Conclusion', status: 'pending', progress: 0 },
+      { title: 'Performing AI Analysis', status: 'pending', progress: 0 },
+      { title: 'Formatting Script', status: 'pending', progress: 0 }
+    ]);
+
+    console.log('Calling API to generate final script with prompts:', generatedPrompts);
+
+    try {
+      // Prepare payload for the backend script service
+      const payload = {
+        prompts: generatedPrompts,
+        // Include other optional fields if needed by backend 
+        // (e.g., memberCount for speaker labels)
+        memberCount: memberCount, 
+        topic: topic, // Pass topic for context/logging
+        duration: duration // Pass duration for context/logging
+      };
+
+      // Actual API call to generate the script
+      const response = await fetch('/api/script/generate/short-form', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.error || `Script generation failed (status ${response.status})`
+        );
+      }
+
+      const scriptData = await response.json();
+      
+      // Validate the received data structure (basic)
+      if (!scriptData || !scriptData.script || !scriptData.fullScript) {
+         throw new Error('Invalid script data received from API.');
+      }
+
+      // Update state with actual script data from backend
+      setScript(scriptData.fullScript);
+      setAiRating(scriptData.rating || null); // Handle potentially missing rating
+      console.log('Received final script data:', scriptData);
+      toast.success('Script generated successfully!');
+
+      setActiveStep(3); // Move to Step 3 (Generated Script view)
+
+    } catch (error) {
+      console.error('Error generating final script:', error);
+      const message = error instanceof Error ? error.message : 'Failed to generate final script.';
+      setError(message);
+      toast.error(`Error: ${message}`);
+      setGenerationSteps(prev => prev.map(step => ({ // Show error in steps
+        ...step,
+        status: step.status === 'active' ? 'error' : step.status
+      })));
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Calculate word and character counts
@@ -855,27 +916,18 @@ export default function ScriptWriter() {
                   <TopicSelector
                     topic={topic}
                     setTopic={setTopic}
-                    mood={mood} // Pass mood state
-                    setMood={setMood} // Pass setMood function
+                    mood={mood}
+                    setMood={setMood}
                     duration={duration}
-                    setDuration={handleDurationChange} // Correct function passed
+                    setDuration={handleDurationChange}
                     memberCount={memberCount}
-                    setMemberCount={handleMemberCountChange} // Correct function passed
+                    setMemberCount={handleMemberCountChange}
                     loading={loading}
-                    onSubmit={handleGeneratePrompts} // Updated onSubmit handler
+                    onSubmit={handleGeneratePrompts}
                   />
                 )}
 
-                {activeStep === 1 && (
-                  <PromptSelector
-                    topic={topic} 
-                    duration={duration}
-                    memberCount={memberCount}
-                    onPromptGenerate={handlePromptGenerate}
-                  />
-                )}
-
-                {activeStep === 2 && generatedPrompts && (
+                {activeStep === 1 && generatedPrompts && (
                   <Box>
                     <Typography variant="h5" component="h2" gutterBottom sx={{ fontWeight: 500, mb: 3 }}>
                       Review Generated Prompts
@@ -954,14 +1006,14 @@ export default function ScriptWriter() {
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
                       <Button
                         variant="outlined"
-                        onClick={() => setActiveStep(0)} // Go back to topic selection
+                        onClick={() => setActiveStep(0)}
                         startIcon={<ArrowBackIcon />}
                       >
                         Back to Topic
                       </Button>
                       <Button
                         variant="contained"
-                        onClick={() => setActiveStep(3)} // Move to final script generation confirmation
+                        onClick={handleGenerateFinalScript}
                         endIcon={<PlayArrowIcon />}
                       >
                         Generate Final Script
@@ -970,7 +1022,7 @@ export default function ScriptWriter() {
                   </Box>
                 )}
 
-                {activeStep === 3 && (
+                {activeStep === 2 && (
                   <Box>
                     <Typography variant="h5" component="h2" gutterBottom sx={{ fontWeight: 500, mb: 3 }}>
                       Final Review
@@ -1002,7 +1054,7 @@ export default function ScriptWriter() {
                           variant="contained"
                           color="primary"
                           size="large"
-                          onClick={handleGeneratePrompts}
+                          onClick={handleGenerateFinalScript}
                           startIcon={<PlayArrowIcon />}
                           sx={{ px: 4 }}
                         >
@@ -1014,7 +1066,7 @@ export default function ScriptWriter() {
                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Button
                         variant="outlined"
-                        onClick={() => setActiveStep(2)}
+                        onClick={() => setActiveStep(1)}
                         startIcon={<ArrowBackIcon />}
                       >
                         Back to Review
@@ -1023,7 +1075,7 @@ export default function ScriptWriter() {
                   </Box>
                 )}
 
-                {activeStep === 4 && script && (
+                {activeStep === 3 && script && (
                 <Box>
                   <Box sx={{ 
                     display: 'flex', 

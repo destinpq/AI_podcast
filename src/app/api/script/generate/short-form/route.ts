@@ -1,101 +1,79 @@
 import { NextResponse } from 'next/server';
 import { withErrorHandling } from '@/app/api/api-utils';
 
+// Re-define or import the GeneratedPrompts interface for type safety
+interface GeneratedPrompts {
+  researchPrompt: string;
+  structurePrompt: string;
+  introPrompt: string;
+  segmentPrompts: string[];
+  factCheckPrompt: string;
+  conclusionPrompt: string;
+}
+
+// DTO expected by this API route from the frontend component
+interface GenerateFinalScriptDto {
+  prompts: GeneratedPrompts;
+  memberCount?: number; // Optional fields to pass through
+  topic?: string;
+  duration?: number;
+}
+
 export const POST = withErrorHandling(async (request: Request) => {
   // Get backend URL from environment variable
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:7778';
-  
+
   try {
-    // Forward the request payload to the backend
-    const payload = await request.json();
-    
-    console.log('Proxying request to backend:', `${backendUrl}/script/generate/short-form`);
-    
-    // Call the backend API
+    // Parse the request body expecting the structured DTO
+    const payload: GenerateFinalScriptDto = await request.json();
+
+    // Validate that the prompts object exists
+    if (!payload || !payload.prompts) {
+      return NextResponse.json(
+        { error: 'Invalid request payload: Missing prompts object.' },
+        { status: 400 },
+      );
+    }
+
+    console.log(
+      'Proxying request to backend script generation:',
+      `${backendUrl}/script/generate/short-form`,
+    );
+    console.log('Payload:', payload);
+
+    // Call the backend API, forwarding the structured payload
     const response = await fetch(`${backendUrl}/script/generate/short-form`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(payload), // Forward the received DTO
     });
-    
-    // If the backend returns an error, return a mock response for development
+
+    // Handle backend response
     if (!response.ok) {
-      console.log(`Backend returned error ${response.status}. Using mock response.`);
-      
-      // Extract payload details for mock response generation
-      const topic = payload.topic || 'this topic';
-      const duration = payload.duration || 15;
-      
-      // Create mock response
-      return NextResponse.json({
-        script: {
-          hook: `Welcome to today's expert insight on ${topic}. In the next ${duration} minutes, we'll explore key aspects that every professional should know.`,
-          insight: `Let's dive into ${topic}. First, we should understand that this area has seen significant developments recently. \n\nAccording to our research, the main factors to consider are market trends, user adoption, and technical feasibility. \n\nIndustry experts suggest that focusing on these elements can lead to better outcomes and strategic positioning.`,
-          takeaway: `To summarize what we've covered today about ${topic}, remember these key points: identify your goals, monitor trends continuously, and implement feedback loops. By applying these insights, you'll be well-positioned for success.`
+      const errorText = await response.text();
+      console.error(
+        `Backend script generation failed (${response.status}): ${errorText}`,
+      );
+      return NextResponse.json(
+        {
+          error:
+            `Backend script generation failed: ${errorText || response.statusText}`,
         },
-        wordCount: duration * 140,
-        rating: {
-          overall: 4.5,
-          categories: {
-            content: 4.5,
-            structure: 4.5,
-            engagement: 4.5,
-            clarity: 4.5,
-            pacing: 4.5
-          },
-          feedback: {
-            strengths: [
-              'Focused and concise delivery',
-              'Expert-level insights',
-              'Clear actionable takeaways',
-              'Engaging opening hook',
-              'Natural dialogue flow'
-            ],
-            improvements: []
-          }
-        }
-      });
+        { status: response.status },
+      );
     }
-    
-    // Return the backend response
+
+    // Return the successful backend response
     const data = await response.json();
     return NextResponse.json(data);
-  } catch (error) {
-    console.error('Error in short-form script generation:', error);
-    
-    // Return a mock response for development (consider payload details)
-    const topic = 'this topic'; // Maybe try to get from payload if error occurs after parsing?
-    const duration = 15;
-    
-    return NextResponse.json({
-      script: {
-        hook: `Welcome to today's expert insight on ${topic}. In the next ${duration} minutes, we'll explore key aspects that every professional should know.`,
-        insight: `Let's dive into ${topic}. First, we should understand that this area has seen significant developments recently. \n\nAccording to our research, the main factors to consider are market trends, user adoption, and technical feasibility. \n\nIndustry experts suggest that focusing on these elements can lead to better outcomes and strategic positioning.`,
-        takeaway: `To summarize what we've covered today about ${topic}, remember these key points: identify your goals, monitor trends continuously, and implement feedback loops. By applying these insights, you'll be well-positioned for success.`
-      },
-      wordCount: duration * 140,
-      rating: {
-        overall: 4.5,
-        categories: {
-          content: 4.5,
-          structure: 4.5,
-          engagement: 4.5,
-          clarity: 4.5,
-          pacing: 4.5
-        },
-        feedback: {
-          strengths: [
-            'Focused and concise delivery',
-            'Expert-level insights',
-            'Clear actionable takeaways',
-            'Engaging opening hook',
-            'Natural dialogue flow'
-          ],
-          improvements: []
-        }
-      }
-    });
+  } catch (error: unknown) {
+    console.error('Error in API route /api/script/generate/short-form:', error);
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Unknown error processing script generation request.';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }); 
