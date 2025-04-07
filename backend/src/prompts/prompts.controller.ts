@@ -6,21 +6,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { PromptsService } from './prompts.service';
-import { IsString, IsNumber, IsNotEmpty } from 'class-validator';
-
-class GeneratePromptsDto {
-  @IsString()
-  @IsNotEmpty()
-  topic: string;
-
-  @IsString()
-  @IsNotEmpty()
-  mood: string;
-
-  @IsNumber()
-  @IsNotEmpty()
-  duration: number;
-}
+import { GeneratePromptsDto } from './prompts.types';
 
 @Controller('prompts')
 export class PromptsController {
@@ -29,15 +15,11 @@ export class PromptsController {
   @Post('generate')
   async generatePrompts(@Body() generatePromptsDto: GeneratePromptsDto) {
     try {
-      const result = await this.promptsService.generatePrompts(
-        generatePromptsDto as any,
-      );
+      const result = await this.promptsService.generatePrompts(generatePromptsDto);
       return result;
     } catch (error: any) {
-      throw new HttpException(
-        error?.message || 'Failed to generate prompts',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      const message = error instanceof Error ? error.message : 'Failed to generate prompts';
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 } 

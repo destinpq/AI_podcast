@@ -1,22 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
-
-interface PromptGenerationParams {
-  topic: string;
-  mood: string;
-  duration: number;
-}
-
-// Define the expected structure of the JSON response
-interface GeneratedPrompts {
-  researchPrompt: string;
-  structurePrompt: string;
-  introPrompt: string;
-  segmentPrompts: string[];
-  factCheckPrompt: string;
-  conclusionPrompt: string;
-}
+import {
+  GeneratedPrompts,
+  GeneratePromptsDto as PromptGenerationParams,
+} from './prompts.types';
 
 @Injectable()
 export class PromptsService {
@@ -46,18 +34,22 @@ export class PromptsService {
 
       Generate a JSON object containing specific prompts for the following podcast elements:
 
-      1.  **Research Focus**: A prompt instructing the AI to conduct deep research, find stunning facts, relevant statistics, historical context, recent developments, and potential controversies related to the topic "${topic}". The research should support the specified mood: "${mood}".
-      2.  **Overall Structure**: A prompt defining a high-level outline or structure for the ${duration}-minute podcast. Consider the mood "${mood}" and topic "${topic}" when suggesting segments (e.g., intro, deep dive 1, emotional anecdote, expert insight, factual segment, listener question simulation, conclusion).
+      1.  **Research Focus**: A prompt instructing the AI to conduct deep research, find stunning facts, relevant statistics, historical context, recent developments, potential controversies, and **verifiable sources/citations** related to the topic "${topic}". The research should support the specified mood: "${mood}".
+      2.  **Overall Structure**: A prompt defining a high-level outline or structure for the ${duration}-minute podcast. Consider the mood "${mood}" and topic "${topic}" when suggesting segments (e.g., intro, deep dive 1, emotional anecdote, expert insight, factual segment, conclusion).
       3.  **Introduction**: A prompt to write an engaging introduction (approx. 1-2 minutes) that grabs the listener, introduces the topic "${topic}", sets the mood "${mood}", and hints at the depth and variety of content to come.
       4.  **Segment Prompts (Array)**: Generate an array of prompts, one for each main segment identified in the structure. Each prompt should instruct the AI to write that specific segment's script (e.g., 3-5 minutes each), incorporating:
-          *   The research findings.
-          *   Specific emotional tones fitting the overall mood "${mood}" (e.g., create a segment that evokes curiosity, another that is humorous, one that is serious and factual, one that is reflective or poignant). Ensure a mix of emotions is covered throughout the podcast.
-          *   Stunning facts or insightful statistics found during research.
-          *   Potentially different formats within segments (e.g., monologue, simulated dialogue, storytelling).
-      5.  **Fact Check/Verification**: A prompt instructing the AI to review the generated script segments, identify key factual claims, and suggest verification checks or sources.
+          *   The research findings **including specific facts and figures**.
+          *   Specific emotional tones fitting the overall mood "${mood}".
+          *   **Crucially, instruct the AI writing the segment to internally note or mark where specific facts/figures requiring citations are used.**
+          *   Potentially different formats within segments.
+      5.  **Fact Check & Citation Prompt**: A prompt instructing a **separate** AI instance to:
+          *   Review a completed script based on the topic "${topic}".
+          *   Identify key factual claims, statistics, dates, or data points presented.
+          *   For each identified claim, attempt to find a verifiable source (e.g., URL to a reputable publication, study DOI, book reference).
+          *   **Format the output as a structured list (e.g., JSON array of objects, or markdown list) mapping each claim to its source.** If a source cannot be found for a claim, indicate that explicitly (e.g., "Source not found").
       6.  **Conclusion**: A prompt to write a memorable conclusion (approx. 1-2 minutes) that summarizes key takeaways, reinforces the mood "${mood}", and provides a satisfying closing thought or call to action related to "${topic}".
 
-      Ensure the generated prompts are clear, specific, and actionable for an AI scriptwriter. The final output MUST be a valid JSON object containing keys like "researchPrompt", "structurePrompt", "introPrompt", "segmentPrompts" (an array of strings), "factCheckPrompt", and "conclusionPrompt".
+      Ensure the generated prompts are clear, specific, and actionable. The final output MUST be a valid JSON object containing keys like "researchPrompt", "structurePrompt", "introPrompt", "segmentPrompts" (an array of strings), "factCheckPrompt", and "conclusionPrompt".
     `;
 
     try {
@@ -74,7 +66,7 @@ export class PromptsService {
             content: metaPrompt,
           },
         ],
-        response_format: { type: 'json_object' }, // Request JSON output
+        response_format: { type: 'json_object' },
       });
 
       const jsonResponse = response.choices[0].message.content;
@@ -83,10 +75,8 @@ export class PromptsService {
         throw new Error('OpenAI returned an empty response.');
       }
 
-      // Attempt to parse the JSON response
       try {
-        const parsedPrompts = JSON.parse(jsonResponse) as GeneratedPrompts; // Assert type
-        // Basic validation (can be expanded)
+        const parsedPrompts = JSON.parse(jsonResponse) as GeneratedPrompts;
         if (
           !parsedPrompts.researchPrompt ||
           !parsedPrompts.structurePrompt ||
@@ -97,7 +87,7 @@ export class PromptsService {
         ) {
           throw new Error('Generated JSON is missing required prompt fields.');
         }
-        return parsedPrompts; // Return the parsed JSON object
+        return parsedPrompts;
       } catch (parseError) {
         console.error('Failed to parse OpenAI JSON response:', jsonResponse);
         const message =
