@@ -54,19 +54,18 @@ export class PromptsService {
 
     try {
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-4-turbo-preview',
         messages: [
           {
             role: 'system' as const,
             content:
-              'You are a helpful assistant designed to generate structured prompts in JSON format based on user requirements.',
+              'You are a helpful assistant designed to generate structured prompts in JSON format based on user requirements. Always respond with properly formatted JSON that can be parsed. Your response should start with an opening curly brace and end with a closing curly brace.',
           },
           {
             role: 'user' as const,
             content: metaPrompt,
           },
         ],
-        response_format: { type: 'json_object' },
       });
 
       const jsonResponse = response.choices[0].message.content;
@@ -75,8 +74,12 @@ export class PromptsService {
         throw new Error('OpenAI returned an empty response.');
       }
 
+      // Extract JSON from the response, handling potential Markdown code blocks
+      const cleanedJson = this.extractJsonFromResponse(jsonResponse);
+      console.log('Extracted JSON:', cleanedJson);
+
       try {
-        const parsedPrompts = JSON.parse(jsonResponse) as GeneratedPrompts;
+        const parsedPrompts = JSON.parse(cleanedJson) as GeneratedPrompts;
         if (
           !parsedPrompts.researchPrompt ||
           !parsedPrompts.structurePrompt ||
@@ -89,7 +92,7 @@ export class PromptsService {
         }
         return parsedPrompts;
       } catch (parseError) {
-        console.error('Failed to parse OpenAI JSON response:', jsonResponse);
+        console.error('Failed to parse OpenAI JSON response:', cleanedJson);
         const message =
           parseError instanceof Error
             ? parseError.message
@@ -102,5 +105,29 @@ export class PromptsService {
         error instanceof Error ? error.message : 'Unknown OpenAI error';
       throw new Error(`Failed to generate prompts via OpenAI: ${message}`);
     }
+  }
+
+  /**
+   * Extracts JSON content from a response, handling cases where the JSON
+   * is wrapped in Markdown code blocks
+   */
+  private extractJsonFromResponse(response: string): string {
+    // Check if the response contains a markdown code block
+    const codeBlockMatch = response.match(/```(?:json)?\s*\n([\s\S]*?)\n```/);
+    if (codeBlockMatch && codeBlockMatch[1]) {
+      return codeBlockMatch[1].trim();
+    }
+
+    // If no code block is found, assume the entire response is JSON
+    // But first, try to find the first { and last } to extract just the JSON part
+    const firstBrace = response.indexOf('{');
+    const lastBrace = response.lastIndexOf('}');
+    
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      return response.substring(firstBrace, lastBrace + 1);
+    }
+    
+    // Fall back to the original response if no clear JSON structure is found
+    return response;
   }
 } 

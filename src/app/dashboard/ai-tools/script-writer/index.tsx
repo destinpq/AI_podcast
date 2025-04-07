@@ -269,6 +269,7 @@ function TopicSelector({
           value={memberCount.toString()}
           onChange={(e) => setMemberCount(e.target.value)}
           disabled={loading}
+          displayEmpty
         >
           <SelectMenuItem value="1">Solo</SelectMenuItem>
           <SelectMenuItem value="2">2 People</SelectMenuItem>
@@ -643,10 +644,10 @@ export default function ScriptWriter() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.error || `Script generation failed (status ${response.status})`
-        );
+        const errorData = await response.json();
+        const errorMsg = errorData.error || `Script generation failed (status ${response.status})`;
+        console.error('Script generation error:', errorMsg);
+        throw new Error(errorMsg);
       }
 
       const scriptData = await response.json();
