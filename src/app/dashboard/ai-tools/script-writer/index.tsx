@@ -53,7 +53,6 @@ import AddCircleIcon from '@mui/icons-material/AddCircle';
 import TipsAndUpdatesIcon from '@mui/icons-material/TipsAndUpdates';
 import FormatQuoteIcon from '@mui/icons-material/FormatQuote';
 import MicIcon from '@mui/icons-material/Mic';
-import CardMedia from '@mui/material/CardMedia';
 import TextSnippetIcon from '@mui/icons-material/TextSnippet';
 import LinearProgress from '@mui/material/LinearProgress';
 import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
@@ -173,14 +172,14 @@ function TopicSelector({
   ];
 
   return (
-    <Box>
-      <Typography variant="h6" gutterBottom>
+    <Box sx={{ maxWidth: 'md', width: '100%', mx: 'auto' }}>
+      <Typography variant="h6" gutterBottom fontWeight={600} mb={2}>
         Enter Topic Details
       </Typography>
       
       <Box sx={{ mb: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-          <Typography variant="subtitle1" gutterBottom>
+          <Typography variant="subtitle1" fontWeight={500}>
             Topic
           </Typography>
           <Button 
@@ -188,7 +187,14 @@ function TopicSelector({
             startIcon={<LightbulbIcon />}
             onClick={generateAITopics}
             disabled={loadingTopics || loading}
+            variant="outlined"
+            sx={{ 
+              borderRadius: '20px', 
+              textTransform: 'none',
+              fontSize: '0.8rem'
+            }}
           >
+            {loadingTopics ? <CircularProgress size={16} sx={{ mr: 1 }} /> : null}
             {loadingTopics ? 'Finding topics...' : 'AI Topic Finder'}
           </Button>
         </Box>
@@ -199,7 +205,13 @@ function TopicSelector({
           onChange={(e) => setTopic(e.target.value)}
           placeholder="Enter your podcast topic..."
           disabled={loading}
-          sx={{ mb: 2 }}
+          sx={{ 
+            mb: 2,
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '8px',
+              fontSize: '1rem'
+            } 
+          }}
         />
         
         {/* Trending Topics Section */}
@@ -216,75 +228,111 @@ function TopicSelector({
                 onClick={() => handleTopicSelect(trendingTopic)}
                 clickable
                 color={topic === trendingTopic ? "primary" : "default"}
-                sx={{ mb: 1 }}
-                icon={topic === trendingTopic ? <AddCircleIcon /> : undefined}
+                sx={{ 
+                  mb: 1,
+                  fontWeight: topic === trendingTopic ? 600 : 400,
+                  boxShadow: topic === trendingTopic ? '0 2px 4px rgba(0,0,0,0.2)' : 'none',
+                  '& .MuiChip-label': {
+                    color: topic === trendingTopic ? 'white' : 'inherit'
+                  }
+                }}
+                variant={topic === trendingTopic ? "filled" : "outlined"}
+                size="medium"
               />
             ))}
           </Box>
         </Box>
       </Box>
 
-      {/* Mood Selector */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="subtitle1" gutterBottom>
-          Podcast Mood
-        </Typography>
-        <Select
-          fullWidth
-          value={mood}
-          onChange={(e) => setMood(e.target.value)}
-          disabled={loading}
-        >
-          {moods.map((m) => (
-            <SelectMenuItem key={m} value={m}>{m}</SelectMenuItem>
-          ))}
-        </Select>
-      </Box>
+      {/* Form fields in a responsive grid */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        {/* Mood Selector */}
+        <Grid item xs={12} sm={4}>
+          <Typography variant="subtitle1" fontWeight={500} gutterBottom>
+            Podcast Mood
+          </Typography>
+          <Select
+            fullWidth
+            value={mood}
+            onChange={(e) => setMood(e.target.value)}
+            disabled={loading}
+            sx={{ 
+              borderRadius: '8px',
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'rgba(0, 0, 0, 0.23)'
+              }
+            }}
+          >
+            {moods.map((m) => (
+              <SelectMenuItem key={m} value={m}>{m}</SelectMenuItem>
+            ))}
+          </Select>
+        </Grid>
 
-      {/* Duration Selector */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="subtitle1" gutterBottom>
-          Duration (minutes)
-        </Typography>
-        <Select
-          fullWidth
-          value={duration.toString()}
-          onChange={(e) => setDuration(e.target.value)}
-          disabled={loading}
-        >
-          <SelectMenuItem value="15">15 minutes</SelectMenuItem>
-          <SelectMenuItem value="30">30 minutes</SelectMenuItem>
-          <SelectMenuItem value="45">45 minutes</SelectMenuItem>
-          <SelectMenuItem value="60">1 hour</SelectMenuItem>
-        </Select>
-      </Box>
+        {/* Duration Selector */}
+        <Grid item xs={12} sm={4}>
+          <Typography variant="subtitle1" fontWeight={500} gutterBottom>
+            Duration (minutes)
+          </Typography>
+          <Select
+            fullWidth
+            value={duration.toString()}
+            onChange={(e) => setDuration(e.target.value)}
+            disabled={loading}
+            sx={{ 
+              borderRadius: '8px',
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'rgba(0, 0, 0, 0.23)'
+              }
+            }}
+          >
+            <SelectMenuItem value="15">15 minutes</SelectMenuItem>
+            <SelectMenuItem value="30">30 minutes</SelectMenuItem>
+            <SelectMenuItem value="45">45 minutes</SelectMenuItem>
+            <SelectMenuItem value="60">60 minutes</SelectMenuItem>
+          </Select>
+        </Grid>
 
-      {/* Speaker Count Selector */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="subtitle1" gutterBottom>
-          Number of Speakers
-        </Typography>
-        <Select
-          fullWidth
-          value={memberCount.toString()}
-          onChange={(e) => setMemberCount(e.target.value)}
-          disabled={loading}
-          displayEmpty
-        >
-          <SelectMenuItem value="1">Solo</SelectMenuItem>
-          <SelectMenuItem value="2">2 People</SelectMenuItem>
-          <SelectMenuItem value="3">3 People</SelectMenuItem>
-          <SelectMenuItem value="4">4 People</SelectMenuItem>
-        </Select>
-      </Box>
+        {/* Number of Speakers */}
+        <Grid item xs={12} sm={4}>
+          <Typography variant="subtitle1" fontWeight={500} gutterBottom>
+            Number of Speakers
+          </Typography>
+          <Select
+            fullWidth
+            value={memberCount.toString()}
+            onChange={(e) => setMemberCount(e.target.value)}
+            disabled={loading}
+            sx={{ 
+              borderRadius: '8px',
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'rgba(0, 0, 0, 0.23)'
+              }
+            }}
+          >
+            <SelectMenuItem value="1">1 Person</SelectMenuItem>
+            <SelectMenuItem value="2">2 People</SelectMenuItem>
+            <SelectMenuItem value="3">3 People</SelectMenuItem>
+            <SelectMenuItem value="4">4 People</SelectMenuItem>
+          </Select>
+        </Grid>
+      </Grid>
 
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
         <Button
           variant="contained"
           onClick={onSubmit}
-          disabled={!topic || !mood || loading}
+          disabled={!topic.trim() || loading}
+          size="large"
+          startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
+          sx={{ 
+            minWidth: { xs: '100%', sm: 200 },
+            borderRadius: '8px',
+            textTransform: 'none',
+            py: 1.2
+          }}
         >
-          Continue
+          {loading ? 'Generating...' : 'Continue'}
         </Button>
       </Box>
     </Box>
@@ -299,6 +347,102 @@ interface GeneratedPrompts {
   segmentPrompts: string[];
   factCheckPrompt: string;
   conclusionPrompt: string;
+}
+
+// Template card component
+function TemplateCard({ 
+  template, 
+  selectedTemplate,
+  setSelectedTemplate 
+}: {
+  template: string;
+  selectedTemplate: string;
+  setSelectedTemplate: (template: string) => void;
+}) {
+  const isSelected = selectedTemplate === template;
+  
+  // Define color mappings
+  const colors = {
+    Conversational: {
+      light: '#e3f2fd',
+      medium: '#bbdefb',
+      dark: '#1976d2',
+      border: '#1565c0'
+    },
+    Educational: {
+      light: '#e8f5e9',
+      medium: '#c8e6c9',
+      dark: '#388e3c',
+      border: '#2e7d32'
+    },
+    Interview: {
+      light: '#f3e5f5',
+      medium: '#e1bee7',
+      dark: '#8e24aa',
+      border: '#6a1b9a'
+    },
+    Narrative: {
+      light: '#fff8e1',
+      medium: '#ffecb3',
+      dark: '#ffb300',
+      border: '#ff8f00'
+    },
+    Tutorial: {
+      light: '#e0f2f1',
+      medium: '#b2dfdb',
+      dark: '#00897b',
+      border: '#00695c'
+    }
+  };
+  
+  // @ts-ignore - TypeScript doesn't know about our specific template names
+  const color = colors[template] || colors.Conversational;
+  
+  return (
+    <Card 
+      sx={{ 
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        p: 2,
+        cursor: 'pointer',
+        transition: 'all 0.2s ease-in-out',
+        borderRadius: 2,
+        border: isSelected ? '2px solid' : '1px solid #e0e0e0',
+        borderColor: isSelected ? color.border : '#e0e0e0',
+        bgcolor: isSelected ? color.medium : color.light,
+        '&:hover': {
+          transform: 'translateY(-4px)',
+          boxShadow: '0 6px 12px rgba(0,0,0,0.1)'
+        }
+      }}
+      onClick={() => setSelectedTemplate(template)}
+    >
+      <Box sx={{ 
+        p: 1.5, 
+        borderRadius: '50%', 
+        display: 'flex',
+        mb: 1,
+        bgcolor: isSelected ? color.dark : color.medium,
+        color: isSelected ? 'white' : 'inherit'
+      }}>
+        {template === 'Conversational' && <FormatQuoteIcon />}
+        {template === 'Educational' && <LightbulbIcon />}
+        {template === 'Interview' && <MicIcon />}
+        {template === 'Narrative' && <TextSnippetIcon />}
+        {template === 'Tutorial' && <TipsAndUpdatesIcon />}
+      </Box>
+      <Typography 
+        variant="subtitle1" 
+        align="center" 
+        fontWeight={isSelected ? 700 : 500}
+      >
+        {template}
+      </Typography>
+    </Card>
+  );
 }
 
 export default function ScriptWriter() {
@@ -318,6 +462,7 @@ export default function ScriptWriter() {
   const [activeStep, setActiveStep] = useState(0);
   const [generationSteps, setGenerationSteps] = useState<GenerationStep[]>([]);
   const [aiRating, setAiRating] = useState<AIRating | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('Conversational');
   // Update generatedPrompts state to hold the structured object or null
   const [generatedPrompts, setGeneratedPrompts] = useState<GeneratedPrompts | null>(null);
   const [userReferences, setUserReferences] = useState<UserReference[]>([]);
@@ -329,52 +474,6 @@ export default function ScriptWriter() {
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [showDraftsDialog, setShowDraftsDialog] = useState(false);
   const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
-
-  // Define template structure
-  const scriptTemplates = [
-    {
-      id: 'interview',
-      title: 'Interview',
-      description: 'Q&A format with expert guests',
-      icon: <MicIcon />,
-      color: '#3f51b5',
-      image: '/templates/interview.svg'
-    },
-    {
-      id: 'storytelling',
-      title: 'Storytelling',
-      description: 'Narrative-driven content',
-      icon: <FormatQuoteIcon />,
-      color: '#e91e63',
-      image: '/templates/storytelling.svg'
-    },
-    {
-      id: 'educational',
-      title: 'Educational',
-      description: 'Tutorial and learning format',
-      icon: <TipsAndUpdatesIcon />,
-      color: '#009688',
-      image: '/templates/educational.svg'
-    },
-    {
-      id: 'news',
-      title: 'News Analysis',
-      description: 'Current events discussion',
-      icon: <TrendingUpIcon />,
-      color: '#f44336',
-      image: '/templates/news.svg'
-    },
-    {
-      id: 'panel',
-      title: 'Panel Discussion',
-      description: 'Multiple expert perspectives',
-      icon: <MicIcon />,
-      color: '#673ab7',
-      image: '/templates/panel.svg'
-    }
-  ];
-  
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
 
   // Initialize mounted state
   useEffect(() => {
@@ -540,15 +639,6 @@ export default function ScriptWriter() {
       </Box>
     );
   }
-
-  // Define updated wizard steps
-  const steps = [
-    'Enter Topic & Mood',
-    'Review Prompts',
-    'Final Review',
-    'Generated Script',
-    'Rate & Save'
-  ];
 
   // Event handlers
   const handleDurationChange = (newDuration: string) => {
@@ -748,519 +838,439 @@ export default function ScriptWriter() {
 
   return (
     <ErrorBoundary>
-    <Box sx={{ 
-      p: { xs: 1, sm: 3 }, 
-      maxWidth: 1200, 
-      mx: 'auto',
-      minHeight: '100vh',
-      bgcolor: 'background.default'
-    }}>
-      {/* Main Content */}
-      <Box 
-        component="main" 
-        sx={{ 
-          flexGrow: 1,
-          height: { xs: 'auto', sm: '100vh' },
-          overflow: 'auto',
-          bgcolor: 'background.default',
-          p: { xs: 1, sm: 1.5 },
-        }}
-      >
-        <Container maxWidth="lg" sx={{ mt: 0 }}>
-          <Typography 
-            variant="h5" 
-            component="h1" 
-            sx={{ 
-              fontSize: { xs: '1.1rem', sm: '1.25rem' },
-              fontWeight: 500,
-              mb: { xs: 1, sm: 1.5 }
-            }}
-          >
+    <Box 
+      sx={{ 
+        minHeight: '100vh',
+        pb: 4,
+        pt: { xs: 2, sm: 4 }
+      }}
+    >
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h4" component="h1" fontWeight={700} gutterBottom>
             AI Script Writer
           </Typography>
-
-          {/* Templates Gallery */}
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="subtitle1" sx={{ mb: 1 }}>
+          
+          <Paper elevation={0} sx={{ p: 3, mb: 4, bgcolor: '#f8f9ff', borderRadius: 2, border: '1px solid #e0e4f6' }}>
+            <Typography variant="h6" gutterBottom fontWeight={600}>
               Script Templates
             </Typography>
-            <Box 
-              sx={{ 
-                display: 'flex', 
-                gap: 2, 
-                pb: 1, 
-                overflowX: 'auto',
-                '&::-webkit-scrollbar': {
-                  height: 6,
-                },
-                '&::-webkit-scrollbar-track': {
-                  borderRadius: 10,
-                  backgroundColor: 'rgba(0,0,0,0.1)',
-                },
-                '&::-webkit-scrollbar-thumb': {
-                  borderRadius: 10,
-                  backgroundColor: 'rgba(0,0,0,0.2)',
-                },
-              }}
-            >
-              {scriptTemplates.map((template) => (
-                <Card 
-                  key={template.id}
-                  sx={{ 
-                    minWidth: 180,
-                    maxWidth: 180,
-                    cursor: 'pointer',
-                    boxShadow: selectedTemplate === template.id ? 4 : 1,
-                    transition: 'all 0.2s',
-                    border: selectedTemplate === template.id ? `2px solid ${template.color}` : 'none',
-                    '&:hover': {
-                      boxShadow: 3,
-                      transform: 'translateY(-4px)'
-                    }
-                  }}
-                  onClick={() => setSelectedTemplate(template.id)}
-                >
-                  <Box sx={{ position: 'relative', height: 100 }}>
-                    <CardMedia
-                      component="img"
-                      height="100"
-                      image={template.image}
-                      alt={template.title}
-                      sx={{ objectFit: 'cover' }}
-                      onError={(e) => {
-                        // Fallback if image doesn't load
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                      }}
-                    />
-                    <Box 
-                      sx={{ 
-                        position: 'absolute', 
-                        top: 0, 
-                        left: 0, 
-                        width: '100%',
-                        height: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        bgcolor: !template.image ? template.color : 'transparent',
-                        color: 'white'
-                      }}
-                    >
-                      {!template.image && template.icon}
-                    </Box>
-                    {selectedTemplate === template.id && (
-                      <Box 
-                        sx={{ 
-                          position: 'absolute', 
-                          top: 8, 
-                          right: 8, 
-                          width: 20, 
-                          height: 20, 
-                          borderRadius: '50%', 
-                          bgcolor: 'primary.main',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'white'
-                        }}
-                      >
-                        <AddCircleIcon fontSize="small" />
-                      </Box>
-                    )}
-                  </Box>
-                  <CardContent sx={{ p: 1.5 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                      {template.title}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {template.description}
-                    </Typography>
-                  </CardContent>
-                </Card>
+            <Grid container spacing={3}>
+              {['Conversational', 'Educational', 'Interview', 'Narrative', 'Tutorial'].map((template, index) => (
+                <Grid item xs={6} sm={4} md={2.4} key={index}>
+                  <TemplateCard
+                    template={template}
+                    selectedTemplate={selectedTemplate}
+                    setSelectedTemplate={setSelectedTemplate}
+                  />
+                </Grid>
               ))}
-            </Box>
-          </Box>
-
+            </Grid>
+          </Paper>
+          
           <Stepper 
             activeStep={activeStep} 
+            alternativeLabel 
             connector={<ProgressConnector />}
             sx={{ 
-              mb: { xs: 1, sm: 1.5 },
+              mb: 5,
               '& .MuiStepLabel-label': {
-                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                fontWeight: 500,
+                mt: 1,
+                fontSize: '0.875rem'
+              },
+              '& .MuiStepIcon-root': {
+                width: 35,
+                height: 35,
+                color: 'primary.main',
+                '&.Mui-active': {
+                  color: 'primary.main',
+                },
+                '&.Mui-completed': {
+                  color: 'success.main',
+                }
               }
             }}
           >
-            {steps.map((label) => (
-              <Step key={label}>
-                <StepLabel>{label}</StepLabel>
-              </Step>
-            ))}
+            <Step>
+              <StepLabel>Enter Topic & Mood</StepLabel>
+            </Step>
+            <Step>
+              <StepLabel>Review Prompts</StepLabel>
+            </Step>
+            <Step>
+              <StepLabel>Final Review</StepLabel>
+            </Step>
+            <Step>
+              <StepLabel>Generated Script</StepLabel>
+            </Step>
+            <Step>
+              <StepLabel>Rate & Save</StepLabel>
+            </Step>
           </Stepper>
-
-          {error && (
-            <Alert severity="error" sx={{ mb: { xs: 1, sm: 1.5 } }}>
-              {error}
-            </Alert>
-          )}
-
-          <Card sx={{ 
-            mb: { xs: 2, sm: 3 },
-            boxShadow: { xs: 0, sm: 1 }
-          }}>
-            <CardContent sx={{ 
-              p: { xs: 1.5, sm: 2 }, 
-              '&:last-child': { pb: { xs: 1.5, sm: 2 } } 
-            }}>
-              {activeStep === 0 && (
-                  <TopicSelector
-                    topic={topic}
-                    setTopic={setTopic}
-                    mood={mood}
-                    setMood={setMood}
-                    duration={duration}
-                    setDuration={handleDurationChange}
-                    memberCount={memberCount}
-                    setMemberCount={handleMemberCountChange}
-                    loading={loading}
-                    onSubmit={handleGeneratePrompts}
-                  />
-                )}
-
-                {activeStep === 1 && generatedPrompts && (
-                  <Box>
-                    <Typography variant="h5" component="h2" gutterBottom sx={{ fontWeight: 500, mb: 3 }}>
-                      Review Generated Prompts
-                    </Typography>
-                    
-                    <Grid container spacing={3}>
-                      {/* Research Prompt */}
-                      <Grid item xs={12} md={6}>
-                        <Card sx={{ height: '100%' }}>
-                          <CardContent>
-                            <Typography variant="h6">Research Focus Prompt</Typography>
-                            <Divider sx={{ my: 1 }} />
-                            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{generatedPrompts.researchPrompt}</Typography>
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                      {/* Structure Prompt */}
-                      <Grid item xs={12} md={6}>
-                        <Card sx={{ height: '100%' }}>
-                          <CardContent>
-                            <Typography variant="h6">Overall Structure Prompt</Typography>
-                            <Divider sx={{ my: 1 }} />
-                            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{generatedPrompts.structurePrompt}</Typography>
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                      {/* Intro Prompt */}
-                      <Grid item xs={12} md={6}>
-                        <Card sx={{ height: '100%' }}>
-                          <CardContent>
-                            <Typography variant="h6">Introduction Prompt</Typography>
-                            <Divider sx={{ my: 1 }} />
-                            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{generatedPrompts.introPrompt}</Typography>
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                      {/* Conclusion Prompt */}
-                      <Grid item xs={12} md={6}>
-                        <Card sx={{ height: '100%' }}>
-                          <CardContent>
-                            <Typography variant="h6">Conclusion Prompt</Typography>
-                            <Divider sx={{ my: 1 }} />
-                            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{generatedPrompts.conclusionPrompt}</Typography>
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                      {/* Segment Prompts */}
-                      <Grid item xs={12}>
-                        <Card>
-                          <CardContent>
-                            <Typography variant="h6">Segment Prompts ({generatedPrompts.segmentPrompts.length})</Typography>
-                            <Divider sx={{ my: 1 }} />
-                            <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
-                              {generatedPrompts.segmentPrompts.map((prompt, index) => (
-                                <Paper key={index} variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
-                                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Segment {index + 1}</Typography>
-                                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{prompt}</Typography>
-                                </Paper>
-                              ))}
-                            </Box>
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                       {/* Fact Check Prompt */}
-                       <Grid item xs={12}>
-                         <Card>
-                           <CardContent>
-                             <Typography variant="h6">Fact Check Prompt</Typography>
-                             <Divider sx={{ my: 1 }} />
-                             <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{generatedPrompts.factCheckPrompt}</Typography>
-                           </CardContent>
-                         </Card>
-                       </Grid>
-                    </Grid>
-
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
-                      <Button
-                        variant="outlined"
-                        onClick={() => setActiveStep(0)}
-                        startIcon={<ArrowBackIcon />}
-                      >
-                        Back to Topic
-                      </Button>
-                      <Button
-                        variant="contained"
-                        onClick={handleGenerateFinalScript}
-                        endIcon={<PlayArrowIcon />}
-                      >
-                        Generate Final Script
-                      </Button>
-                    </Box>
-                  </Box>
-                )}
-
-                {activeStep === 2 && (
-                  <Box>
-                    <Typography variant="h5" component="h2" gutterBottom sx={{ fontWeight: 500, mb: 3 }}>
-                      Final Review
-                    </Typography>
-                    
-                    <Paper sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
-                      <Typography variant="h6" gutterBottom>
-                        Your Script is Ready to Generate
-                      </Typography>
-                      <Typography variant="body1" paragraph>
-                        We&apos;ve prepared all the necessary elements for your podcast script based on your inputs.
-                        The script will cover the topic &quot;{topic}&quot; and will be structured as a {duration}-minute
-                        podcast with {memberCount} speaker{memberCount > 1 ? 's' : ''}.
-                      </Typography>
-                      
-                      <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
-                        The script will include:
-                      </Typography>
-                      
-                      <ul style={{ marginBottom: '1rem' }}>
-                        <li>A 15-second engaging hook to capture audience attention</li>
-                        <li>A structured main section with expert insights</li>
-                        <li>Data-backed talking points for authenticity</li>
-                        <li>A strong 45-second conclusion with actionable takeaways</li>
-                      </ul>
-                      
-                      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                        <Button
-                          variant="contained"
-                          color="primary"
-                          size="large"
-                          onClick={handleGenerateFinalScript}
-                          startIcon={<PlayArrowIcon />}
-                          sx={{ px: 4 }}
-                        >
-                          Generate Final Script
-                        </Button>
-                      </Box>
-                    </Paper>
-                    
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Button
-                        variant="outlined"
-                        onClick={() => setActiveStep(1)}
-                        startIcon={<ArrowBackIcon />}
-                      >
-                        Back to Review
-                      </Button>
-                    </Box>
-                  </Box>
-                )}
-
-                {activeStep === 3 && script && (
-                <Box>
-                  <Box sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    mb: 2 
-                  }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Typography variant="h6">
-                        Generated Script
-                      </Typography>
-                      
-                      {/* Export Button */}
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<FileDownloadIcon />}
-                        onClick={handleExportClick}
-                      >
-                        Export
-                      </Button>
-                      
-                      {/* Save Button */}
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<SaveIcon />}
-                        onClick={() => saveCurrentDraft()}
-                      >
-                        Save Draft
-                      </Button>
-                      
-                      {/* Drafts Button */}
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<FolderOpenIcon />}
-                        onClick={() => setShowDraftsDialog(true)}
-                      >
-                        My Drafts {drafts.length > 0 && `(${drafts.length})`}
-                      </Button>
-                      
-                      {/* Export Menu */}
-                      <Menu
-                        anchorEl={exportAnchorEl}
-                        open={exportOpen}
-                        onClose={handleExportClose}
-                        anchorOrigin={{
-                          vertical: 'bottom',
-                          horizontal: 'right',
-                        }}
-                        transformOrigin={{
-                          vertical: 'top',
-                          horizontal: 'right',
-                        }}
-                      >
-                        <MenuItem onClick={exportAsPDF}>
-                          <ListItemIcon>
-                            <PictureAsPdfIcon fontSize="small" />
-                          </ListItemIcon>
-                          <ListItemText>Export as PDF</ListItemText>
-                        </MenuItem>
-                        <MenuItem onClick={exportAsDoc}>
-                          <ListItemIcon>
-                            <DescriptionIcon fontSize="small" />
-                          </ListItemIcon>
-                          <ListItemText>Export as Word</ListItemText>
-                        </MenuItem>
-                        <MenuItem onClick={exportAsMarkdown}>
-                          <ListItemIcon>
-                            <CodeIcon fontSize="small" />
-                          </ListItemIcon>
-                          <ListItemText>Export as Markdown</ListItemText>
-                        </MenuItem>
-                      </Menu>
-                    </Box>
-                    
-                    {/* Word Count Display */}
-                    <Box sx={{ 
-                      display: 'flex',
-                      alignItems: 'center',
-                      bgcolor: 'background.paper',
-                      p: 1,
-                      borderRadius: 1,
-                      boxShadow: 1
-                    }}>
-                      <TextSnippetIcon color="primary" sx={{ mr: 1 }} />
-                      <Box sx={{ minWidth: 180 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                          <Typography variant="caption" color="text.secondary">
-                            Word Count:
-                          </Typography>
-                          <Typography 
-                            variant="caption" 
-                            color={isWordCountOptimal ? 'success.main' : 'warning.main'}
-                            fontWeight="bold"
-                          >
-                            {wordCount} words
-                          </Typography>
+          
+          <Paper 
+            elevation={0} 
+            sx={{ 
+              p: { xs: 2, sm: 4 }, 
+              mb: 3, 
+              borderRadius: 2,
+              border: '1px solid #e0e0e0'
+            }}
+          >
+            {/* The form steps, script display, etc. */}
+            {activeStep === 0 && (
+              <Box>
+                <Typography variant="h5" component="h2" gutterBottom fontWeight={600}>
+                  Enter Topic Details
+                </Typography>
+                <TopicSelector
+                  topic={topic}
+                  setTopic={setTopic}
+                  mood={mood}
+                  setMood={setMood}
+                  duration={duration}
+                  setDuration={handleDurationChange}
+                  memberCount={memberCount}
+                  setMemberCount={handleMemberCountChange}
+                  loading={loading}
+                  onSubmit={handleGeneratePrompts}
+                />
+              </Box>
+            )}
+            
+            {/* Other steps that were already in the component */}
+            {activeStep === 1 && generatedPrompts && (
+              <Box>
+                <Typography variant="h5" component="h2" gutterBottom sx={{ fontWeight: 500, mb: 3 }}>
+                  Review Generated Prompts
+                </Typography>
+                
+                <Grid container spacing={3}>
+                  {/* Research Prompt */}
+                  <Grid item xs={12} md={6}>
+                    <Card sx={{ height: '100%' }}>
+                      <CardContent>
+                        <Typography variant="h6">Research Focus Prompt</Typography>
+                        <Divider sx={{ my: 1 }} />
+                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{generatedPrompts.researchPrompt}</Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  {/* Structure Prompt */}
+                  <Grid item xs={12} md={6}>
+                    <Card sx={{ height: '100%' }}>
+                      <CardContent>
+                        <Typography variant="h6">Overall Structure Prompt</Typography>
+                        <Divider sx={{ my: 1 }} />
+                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{generatedPrompts.structurePrompt}</Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  {/* Intro Prompt */}
+                  <Grid item xs={12} md={6}>
+                    <Card sx={{ height: '100%' }}>
+                      <CardContent>
+                        <Typography variant="h6">Introduction Prompt</Typography>
+                        <Divider sx={{ my: 1 }} />
+                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{generatedPrompts.introPrompt}</Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  {/* Conclusion Prompt */}
+                  <Grid item xs={12} md={6}>
+                    <Card sx={{ height: '100%' }}>
+                      <CardContent>
+                        <Typography variant="h6">Conclusion Prompt</Typography>
+                        <Divider sx={{ my: 1 }} />
+                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{generatedPrompts.conclusionPrompt}</Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  {/* Segment Prompts */}
+                  <Grid item xs={12}>
+                    <Card>
+                      <CardContent>
+                        <Typography variant="h6">Segment Prompts ({generatedPrompts.segmentPrompts.length})</Typography>
+                        <Divider sx={{ my: 1 }} />
+                        <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
+                          {generatedPrompts.segmentPrompts.map((prompt, index) => (
+                            <Paper key={index} variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>Segment {index + 1}</Typography>
+                              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{prompt}</Typography>
+                            </Paper>
+                          ))}
                         </Box>
-                        <LinearProgress 
-                          variant="determinate" 
-                          value={wordCountPercentage} 
-                          color={isWordCountOptimal ? "success" : "warning"}
-                          sx={{ height: 6, borderRadius: 3, mb: 0.5 }}
-                        />
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Typography variant="caption" color="text.secondary">
-                            Target: {minWordCount}-{maxWordCount}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {charCount} chars
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </Box>
-                  </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                   {/* Fact Check Prompt */}
+                   <Grid item xs={12}>
+                     <Card>
+                       <CardContent>
+                         <Typography variant="h6">Fact Check Prompt</Typography>
+                         <Divider sx={{ my: 1 }} />
+                         <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{generatedPrompts.factCheckPrompt}</Typography>
+                       </CardContent>
+                     </Card>
+                   </Grid>
+                </Grid>
+
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => setActiveStep(0)}
+                    startIcon={<ArrowBackIcon />}
+                  >
+                    Back to Topic
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={handleGenerateFinalScript}
+                    endIcon={<PlayArrowIcon />}
+                  >
+                    Generate Final Script
+                  </Button>
+                </Box>
+              </Box>
+            )}
+
+            {activeStep === 2 && (
+              <Box>
+                <Typography variant="h5" component="h2" gutterBottom sx={{ fontWeight: 500, mb: 3 }}>
+                  Final Review
+                </Typography>
+                
+                <Paper sx={{ p: 3, mb: 3, bgcolor: 'background.paper' }}>
+                  <Typography variant="h6" gutterBottom>
+                    Your Script is Ready to Generate
+                  </Typography>
+                  <Typography variant="body1" paragraph>
+                    We&apos;ve prepared all the necessary elements for your podcast script based on your inputs.
+                    The script will cover the topic &quot;{topic}&quot; and will be structured as a {duration}-minute
+                    podcast with {memberCount} speaker{memberCount > 1 ? 's' : ''}.
+                  </Typography>
                   
-                  <Paper 
-                    sx={{ 
-                      p: { xs: 1.5, sm: 2 }, 
-                      whiteSpace: 'pre-wrap', 
-                      mb: 3,
-                      fontSize: { xs: '0.875rem', sm: '1rem' },
-                      position: 'relative'
+                  <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
+                    The script will include:
+                  </Typography>
+                  
+                  <ul style={{ marginBottom: '1rem' }}>
+                    <li>A 15-second engaging hook to capture audience attention</li>
+                    <li>A structured main section with expert insights</li>
+                    <li>Data-backed talking points for authenticity</li>
+                    <li>A strong 45-second conclusion with actionable takeaways</li>
+                  </ul>
+                  
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      size="large"
+                      onClick={handleGenerateFinalScript}
+                      startIcon={<PlayArrowIcon />}
+                      sx={{ px: 4 }}
+                    >
+                      Generate Final Script
+                    </Button>
+                  </Box>
+                </Paper>
+                
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => setActiveStep(1)}
+                    startIcon={<ArrowBackIcon />}
+                  >
+                    Back to Review
+                  </Button>
+                </Box>
+              </Box>
+            )}
+
+            {activeStep === 3 && script && (
+            <Box>
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                mb: 2 
+              }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Typography variant="h6">
+                    Generated Script
+                  </Typography>
+                  
+                  {/* Export Button */}
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<FileDownloadIcon />}
+                    onClick={handleExportClick}
+                  >
+                    Export
+                  </Button>
+                  
+                  {/* Save Button */}
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<SaveIcon />}
+                    onClick={() => saveCurrentDraft()}
+                  >
+                    Save Draft
+                  </Button>
+                  
+                  {/* Drafts Button */}
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<FolderOpenIcon />}
+                    onClick={() => setShowDraftsDialog(true)}
+                  >
+                    My Drafts {drafts.length > 0 && `(${drafts.length})`}
+                  </Button>
+                  
+                  {/* Export Menu */}
+                  <Menu
+                    anchorEl={exportAnchorEl}
+                    open={exportOpen}
+                    onClose={handleExportClose}
+                    anchorOrigin={{
+                      vertical: 'bottom',
+                      horizontal: 'right',
+                    }}
+                    transformOrigin={{
+                      vertical: 'top',
+                      horizontal: 'right',
                     }}
                   >
-                    {/* Play button for audio preview */}
-                    <IconButton
-                      sx={{
-                        position: 'absolute',
-                        top: 10,
-                        right: 10,
-                        bgcolor: 'primary.main',
-                        color: 'white',
-                        '&:hover': {
-                          bgcolor: 'primary.dark',
-                        },
-                        zIndex: 1
-                      }}
-                    >
-                      <PlayCircleOutlineIcon />
-                    </IconButton>
-                    
-                    {formatScriptContent(script)}
-                  </Paper>
-                  
-                  <Grid container spacing={3}>
-                    {/* User Rating */}
-                    <Grid item xs={12} md={6}>
-                        <UserRatingCard
-                          rating={aiRating?.overall || 0}
-                          setRating={(newRating: number) => {
-                            setAiRating(prevRating => prevRating ? {
-                              ...prevRating,
-                              overall: newRating
-                            } : null);
-                          }}
-                          user={user}
-                          topic={topic}
-                          script={script}
-                          outline={{
-                            intro: 'Introduction',
-                            topics: [topic],
-                            conclusion: 'Conclusion'
-                          }}
-                          duration={duration}
-                          memberCount={memberCount}
-                          aiRating={aiRating}
-                          userReferences={userReferences}
-                          isMobile={isMobile}
-                        />
-                    </Grid>
-
-                    {/* AI Rating */}
-                    <Grid item xs={12} md={6}>
-                        <AiRatingCard aiRating={aiRating} />
-                    </Grid>
-                  </Grid>
+                    <MenuItem onClick={exportAsPDF}>
+                      <ListItemIcon>
+                        <PictureAsPdfIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText>Export as PDF</ListItemText>
+                    </MenuItem>
+                    <MenuItem onClick={exportAsDoc}>
+                      <ListItemIcon>
+                        <DescriptionIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText>Export as Word</ListItemText>
+                    </MenuItem>
+                    <MenuItem onClick={exportAsMarkdown}>
+                      <ListItemIcon>
+                        <CodeIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText>Export as Markdown</ListItemText>
+                    </MenuItem>
+                  </Menu>
                 </Box>
-              )}
-            </CardContent>
-          </Card>
-        </Container>
+                
+                {/* Word Count Display */}
+                <Box sx={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  bgcolor: 'background.paper',
+                  p: 1,
+                  borderRadius: 1,
+                  boxShadow: 1
+                }}>
+                  <TextSnippetIcon color="primary" sx={{ mr: 1 }} />
+                  <Box sx={{ minWidth: 180 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Word Count:
+                      </Typography>
+                      <Typography 
+                        variant="caption" 
+                        color={isWordCountOptimal ? 'success.main' : 'warning.main'}
+                        fontWeight="bold"
+                      >
+                        {wordCount} words
+                      </Typography>
+                    </Box>
+                    <LinearProgress 
+                      variant="determinate" 
+                      value={wordCountPercentage} 
+                      color={isWordCountOptimal ? "success" : "warning"}
+                      sx={{ height: 6, borderRadius: 3, mb: 0.5 }}
+                    />
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Target: {minWordCount}-{maxWordCount}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {charCount} chars
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </Box>
+              
+              <Paper 
+                sx={{ 
+                  p: { xs: 1.5, sm: 2 }, 
+                  whiteSpace: 'pre-wrap', 
+                  mb: 3,
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
+                  position: 'relative'
+                }}
+              >
+                {/* Play button for audio preview */}
+                <IconButton
+                  sx={{
+                    position: 'absolute',
+                    top: 10,
+                    right: 10,
+                    bgcolor: 'primary.main',
+                    color: 'white',
+                    '&:hover': {
+                      bgcolor: 'primary.dark',
+                    },
+                    zIndex: 1
+                  }}
+                >
+                  <PlayCircleOutlineIcon />
+                </IconButton>
+                
+                {formatScriptContent(script)}
+              </Paper>
+              
+              <Grid container spacing={3}>
+                {/* User Rating */}
+                <Grid item xs={12} md={6}>
+                    <UserRatingCard
+                      rating={aiRating?.overall || 0}
+                      setRating={(newRating: number) => {
+                        setAiRating(prevRating => prevRating ? {
+                          ...prevRating,
+                          overall: newRating
+                        } : null);
+                      }}
+                      user={user}
+                      topic={topic}
+                      script={script}
+                      outline={{
+                        intro: 'Introduction',
+                        topics: [topic],
+                        conclusion: 'Conclusion'
+                      }}
+                      duration={duration}
+                      memberCount={memberCount}
+                      aiRating={aiRating}
+                      userReferences={userReferences}
+                      isMobile={isMobile}
+                    />
+                </Grid>
+
+                {/* AI Rating */}
+                <Grid item xs={12} md={6}>
+                    <AiRatingCard aiRating={aiRating} />
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+        </Paper>
       </Box>
 
       {/* Loading overlay */}
@@ -1491,6 +1501,7 @@ export default function ScriptWriter() {
         }}
       />
 
+    </Container>
     </Box>
     </ErrorBoundary>
   );

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { 
   Box, 
   Drawer, 
@@ -22,18 +22,40 @@ import {
   Avatar,
   Menu,
   MenuItem,
-  CircularProgress
+  CircularProgress,
+  alpha,
+  Theme
 } from '@mui/material';
 import {
   Menu as MenuIcon,
   Save as SaveIcon,
   Person as PersonIcon,
-  Logout as LogoutIcon
+  Logout as LogoutIcon,
+  Science as ResearchIcon,
+  Podcasts as PodcastIcon,
+  Psychology as AIToolsIcon,
+  Description as ScriptIcon,
+  Bookmarks as SavedIcon,
+  Groups as TeamsIcon,
+  Slideshow as TutorialIcon,
+  Videocam as WebinarIcon,
+  Forum as CommunityIcon,
+  Settings as SettingsIcon
 } from '@mui/icons-material';
 import { useAuth } from '@/providers/AuthProvider';
 
 // Constants
 const drawerWidth = 240;
+
+// Style for active navigation item
+const activeItemStyle = (isActive: boolean, theme: Theme) => ({
+  bgcolor: isActive ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
+  borderRight: isActive ? `3px solid ${theme.palette.primary.main}` : 'none',
+  '&:hover': {
+    bgcolor: isActive ? alpha(theme.palette.primary.main, 0.15) : alpha(theme.palette.primary.main, 0.04),
+  },
+  transition: 'all 0.2s ease-in-out'
+});
 
 interface UserData {
   id: string;
@@ -74,6 +96,7 @@ function DashboardLayoutContent({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const theme = useTheme();
   const { user, signOut, loading: authLoading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -140,83 +163,396 @@ function DashboardLayoutContent({
     );
   }
 
+  // Helper function to check if a path is active
+  const isActive = (path: string) => {
+    return pathname?.startsWith(path);
+  };
+
   const drawer = (
-    <Box>
-      <Box sx={{ p: 2 }}>
-        <Typography variant="h6" component="div" sx={{ fontWeight: 'bold' }}>
-          Dashboard
+    <Box sx={{ 
+      height: '100%', 
+      display: 'flex', 
+      flexDirection: 'column',
+      bgcolor: 'background.paper',
+    }}>
+      <Box sx={{ 
+        p: 2.5, 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: 1.5
+      }}>
+        <PodcastIcon 
+          color="primary" 
+          sx={{ fontSize: 28 }} 
+        />
+        <Typography 
+          variant="h6" 
+          component="div" 
+          sx={{ 
+            fontWeight: 700, 
+            letterSpacing: '0.5px',
+            color: 'primary.main'
+          }}
+        >
+          AI Podcast Studio
         </Typography>
       </Box>
+      
       <Divider />
-      <List>
-        <ListSubheader>My Projects</ListSubheader>
-        <ListItem disablePadding>
-          <ListItemButton component={Link} href="/dashboard/my-projects/research-projects">
-            <ListItemText primary="Research Projects" />
-          </ListItemButton>
-        </ListItem>
-        <ListItem disablePadding>
-          <ListItemButton component={Link} href="/dashboard/my-projects/podcast-projects">
-            <ListItemText primary="Podcast Projects" />
-          </ListItemButton>
-        </ListItem>
-      </List>
-      <Divider />
-      <List>
-        <ListSubheader>AI Tools</ListSubheader>
-        <ListItem disablePadding>
-          <ListItemButton component={Link} href="/dashboard/ai-tools/research-generator">
-            <ListItemText primary="Research Generator" />
-          </ListItemButton>
-        </ListItem>
-        <ListItem disablePadding>
-          <ListItemButton component={Link} href="/dashboard/ai-tools/script-writer">
-            <ListItemText primary="Script Writer" />
-          </ListItemButton>
-        </ListItem>
-        <ListItem disablePadding>
-          <ListItemButton component={Link} href="/dashboard/ai-tools/saved-scripts">
-            <ListItemText primary="Saved Scripts" />
-          </ListItemButton>
-        </ListItem>
-      </List>
-      <Divider />
-      <List>
-        <ListSubheader>Collaboration</ListSubheader>
-        <ListItem disablePadding>
-          <ListItemButton component={Link} href="/dashboard/collaboration/teams-notes">
-            <ListItemText primary="Teams & Notes" />
-          </ListItemButton>
-        </ListItem>
-      </List>
-      <Divider />
-      <List>
-        <ListSubheader>Learning</ListSubheader>
-        <ListItem disablePadding>
-          <ListItemButton component={Link} href="/dashboard/learning-hub/tutorials">
-            <ListItemText primary="Tutorials" />
-          </ListItemButton>
-        </ListItem>
-        <ListItem disablePadding>
-          <ListItemButton component={Link} href="/dashboard/learning-hub/webinars">
-            <ListItemText primary="Webinars" />
-          </ListItemButton>
-        </ListItem>
-      </List>
-      <Divider />
-      <List>
-        <ListSubheader>Other</ListSubheader>
-        <ListItem disablePadding>
-          <ListItemButton component={Link} href="/dashboard/community">
-            <ListItemText primary="Community" />
-          </ListItemButton>
-        </ListItem>
-        <ListItem disablePadding>
-          <ListItemButton component={Link} href="/dashboard/settings">
-            <ListItemText primary="Settings" />
-          </ListItemButton>
-        </ListItem>
-      </List>
+      
+      <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 1 }}>
+        {/* My Projects Section */}
+        <List
+          subheader={
+            <ListSubheader 
+              component="div" 
+              sx={{ 
+                bgcolor: 'background.paper', 
+                fontWeight: 700,
+                color: 'text.secondary',
+                fontSize: '0.7rem',
+                letterSpacing: '1px',
+                textTransform: 'uppercase',
+                lineHeight: '2rem',
+              }}
+            >
+              My Projects
+            </ListSubheader>
+          }
+          sx={{ py: 0 }}
+        >
+          <ListItem disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton 
+              component={Link} 
+              href="/dashboard/my-projects/research-projects"
+              sx={(theme) => activeItemStyle(isActive('/dashboard/my-projects/research-projects'), theme)}
+            >
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <ResearchIcon fontSize="small" color={isActive('/dashboard/my-projects/research-projects') ? 'primary' : 'inherit'} />
+              </ListItemIcon>
+              <ListItemText 
+                primary="Research Projects" 
+                primaryTypographyProps={{ 
+                  fontSize: '0.9rem',
+                  fontWeight: isActive('/dashboard/my-projects/research-projects') ? 600 : 400
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+          
+          <ListItem disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton 
+              component={Link} 
+              href="/dashboard/my-projects/podcast-projects"
+              sx={(theme) => activeItemStyle(isActive('/dashboard/my-projects/podcast-projects'), theme)}
+            >
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <PodcastIcon fontSize="small" color={isActive('/dashboard/my-projects/podcast-projects') ? 'primary' : 'inherit'} />
+              </ListItemIcon>
+              <ListItemText 
+                primary="Podcast Projects" 
+                primaryTypographyProps={{ 
+                  fontSize: '0.9rem',
+                  fontWeight: isActive('/dashboard/my-projects/podcast-projects') ? 600 : 400
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+        </List>
+        
+        <Divider sx={{ my: 1 }} />
+        
+        {/* AI Tools Section */}
+        <List
+          subheader={
+            <ListSubheader 
+              component="div" 
+              sx={{ 
+                bgcolor: 'background.paper', 
+                fontWeight: 700,
+                color: 'text.secondary',
+                fontSize: '0.7rem',
+                letterSpacing: '1px',
+                textTransform: 'uppercase',
+                lineHeight: '2rem',
+              }}
+            >
+              AI Tools
+            </ListSubheader>
+          }
+          sx={{ py: 0 }}
+        >
+          <ListItem disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton 
+              component={Link} 
+              href="/dashboard/ai-tools/research-generator"
+              sx={(theme) => activeItemStyle(isActive('/dashboard/ai-tools/research-generator'), theme)}
+            >
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <AIToolsIcon fontSize="small" color={isActive('/dashboard/ai-tools/research-generator') ? 'primary' : 'inherit'} />
+              </ListItemIcon>
+              <ListItemText 
+                primary="Research Generator" 
+                primaryTypographyProps={{ 
+                  fontSize: '0.9rem',
+                  fontWeight: isActive('/dashboard/ai-tools/research-generator') ? 600 : 400
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+          
+          <ListItem disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton 
+              component={Link} 
+              href="/dashboard/ai-tools/script-writer"
+              sx={(theme) => activeItemStyle(isActive('/dashboard/ai-tools/script-writer'), theme)}
+            >
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <ScriptIcon fontSize="small" color={isActive('/dashboard/ai-tools/script-writer') ? 'primary' : 'inherit'} />
+              </ListItemIcon>
+              <ListItemText 
+                primary="Script Writer" 
+                primaryTypographyProps={{ 
+                  fontSize: '0.9rem',
+                  fontWeight: isActive('/dashboard/ai-tools/script-writer') ? 600 : 400
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+          
+          <ListItem disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton 
+              component={Link} 
+              href="/dashboard/ai-tools/saved-scripts"
+              sx={(theme) => activeItemStyle(isActive('/dashboard/ai-tools/saved-scripts'), theme)}
+            >
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <SavedIcon fontSize="small" color={isActive('/dashboard/ai-tools/saved-scripts') ? 'primary' : 'inherit'} />
+              </ListItemIcon>
+              <ListItemText 
+                primary="Saved Scripts" 
+                primaryTypographyProps={{ 
+                  fontSize: '0.9rem',
+                  fontWeight: isActive('/dashboard/ai-tools/saved-scripts') ? 600 : 400
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+        </List>
+        
+        <Divider sx={{ my: 1 }} />
+        
+        {/* Collaboration Section */}
+        <List
+          subheader={
+            <ListSubheader 
+              component="div" 
+              sx={{ 
+                bgcolor: 'background.paper', 
+                fontWeight: 700,
+                color: 'text.secondary',
+                fontSize: '0.7rem',
+                letterSpacing: '1px',
+                textTransform: 'uppercase',
+                lineHeight: '2rem',
+              }}
+            >
+              Collaboration
+            </ListSubheader>
+          }
+          sx={{ py: 0 }}
+        >
+          <ListItem disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton 
+              component={Link} 
+              href="/dashboard/collaboration/teams-notes"
+              sx={(theme) => activeItemStyle(isActive('/dashboard/collaboration/teams-notes'), theme)}
+            >
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <TeamsIcon fontSize="small" color={isActive('/dashboard/collaboration/teams-notes') ? 'primary' : 'inherit'} />
+              </ListItemIcon>
+              <ListItemText 
+                primary="Teams & Notes" 
+                primaryTypographyProps={{ 
+                  fontSize: '0.9rem',
+                  fontWeight: isActive('/dashboard/collaboration/teams-notes') ? 600 : 400
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+        </List>
+        
+        <Divider sx={{ my: 1 }} />
+        
+        {/* Learning Section */}
+        <List
+          subheader={
+            <ListSubheader 
+              component="div" 
+              sx={{ 
+                bgcolor: 'background.paper', 
+                fontWeight: 700,
+                color: 'text.secondary',
+                fontSize: '0.7rem',
+                letterSpacing: '1px',
+                textTransform: 'uppercase',
+                lineHeight: '2rem',
+              }}
+            >
+              Learning
+            </ListSubheader>
+          }
+          sx={{ py: 0 }}
+        >
+          <ListItem disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton 
+              component={Link} 
+              href="/dashboard/learning-hub/tutorials"
+              sx={(theme) => activeItemStyle(isActive('/dashboard/learning-hub/tutorials'), theme)}
+            >
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <TutorialIcon fontSize="small" color={isActive('/dashboard/learning-hub/tutorials') ? 'primary' : 'inherit'} />
+              </ListItemIcon>
+              <ListItemText 
+                primary="Tutorials" 
+                primaryTypographyProps={{ 
+                  fontSize: '0.9rem',
+                  fontWeight: isActive('/dashboard/learning-hub/tutorials') ? 600 : 400
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+          
+          <ListItem disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton 
+              component={Link} 
+              href="/dashboard/learning-hub/webinars"
+              sx={(theme) => activeItemStyle(isActive('/dashboard/learning-hub/webinars'), theme)}
+            >
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <WebinarIcon fontSize="small" color={isActive('/dashboard/learning-hub/webinars') ? 'primary' : 'inherit'} />
+              </ListItemIcon>
+              <ListItemText 
+                primary="Webinars" 
+                primaryTypographyProps={{ 
+                  fontSize: '0.9rem',
+                  fontWeight: isActive('/dashboard/learning-hub/webinars') ? 600 : 400
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+        </List>
+        
+        <Divider sx={{ my: 1 }} />
+        
+        {/* Other Section */}
+        <List
+          subheader={
+            <ListSubheader 
+              component="div" 
+              sx={{ 
+                bgcolor: 'background.paper', 
+                fontWeight: 700,
+                color: 'text.secondary',
+                fontSize: '0.7rem',
+                letterSpacing: '1px',
+                textTransform: 'uppercase',
+                lineHeight: '2rem',
+              }}
+            >
+              Other
+            </ListSubheader>
+          }
+          sx={{ py: 0 }}
+        >
+          <ListItem disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton 
+              component={Link} 
+              href="/dashboard/community"
+              sx={(theme) => activeItemStyle(isActive('/dashboard/community'), theme)}
+            >
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <CommunityIcon fontSize="small" color={isActive('/dashboard/community') ? 'primary' : 'inherit'} />
+              </ListItemIcon>
+              <ListItemText 
+                primary="Community" 
+                primaryTypographyProps={{ 
+                  fontSize: '0.9rem',
+                  fontWeight: isActive('/dashboard/community') ? 600 : 400
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+          
+          <ListItem disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton 
+              component={Link} 
+              href="/dashboard/settings"
+              sx={(theme) => activeItemStyle(isActive('/dashboard/settings'), theme)}
+            >
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <SettingsIcon fontSize="small" color={isActive('/dashboard/settings') ? 'primary' : 'inherit'} />
+              </ListItemIcon>
+              <ListItemText 
+                primary="Settings" 
+                primaryTypographyProps={{ 
+                  fontSize: '0.9rem',
+                  fontWeight: isActive('/dashboard/settings') ? 600 : 400
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+        </List>
+      </Box>
+      
+      {/* User profile at bottom of sidebar */}
+      <Box sx={{ 
+        mt: 'auto', 
+        borderTop: '1px solid',
+        borderColor: 'divider',
+        p: 2,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1.5
+      }}>
+        <Avatar 
+          alt={userData?.name || 'User'} 
+          src={userData?.avatar || undefined}
+          sx={{ 
+            bgcolor: 'primary.main',
+            width: 40,
+            height: 40
+          }}
+        >
+          {userData?.name?.charAt(0).toUpperCase() || 'U'}
+        </Avatar>
+        <Box sx={{ overflow: 'hidden' }}>
+          <Typography 
+            variant="subtitle2" 
+            fontWeight={600}
+            sx={{ 
+              lineHeight: 1.2,
+              textOverflow: 'ellipsis',
+              overflow: 'hidden',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {userData?.name}
+          </Typography>
+          <Typography 
+            variant="caption" 
+            color="text.secondary"
+            sx={{ 
+              textOverflow: 'ellipsis',
+              overflow: 'hidden',
+              whiteSpace: 'nowrap',
+              display: 'block'
+            }}
+          >
+            {userData?.email}
+          </Typography>
+        </Box>
+      </Box>
     </Box>
   );
 
@@ -226,40 +562,75 @@ function DashboardLayoutContent({
         position="fixed" 
         sx={{ 
           zIndex: theme.zIndex.drawer + 1,
-          boxShadow: 1,
+          boxShadow: '0 1px 8px rgba(0,0,0,0.1)',
           bgcolor: 'background.paper',
           color: 'text.primary'
         }}
       >
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { md: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
+        <Toolbar sx={{ justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2, display: { md: 'none' } }}
+            >
+              <MenuIcon />
+            </IconButton>
+            
+            <Typography 
+              variant="h6" 
+              component="div" 
+              sx={{ 
+                fontWeight: 'bold',
+                display: { xs: 'none', sm: 'block' } 
+              }}
+            >
+              AI Podcast Studio
+            </Typography>
+          </Box>
           
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
-            AI Podcast Studio
-          </Typography>
-          
-          <Button 
-            component={Link}
-            href="/dashboard/ai-tools/saved-scripts"
-            startIcon={<SaveIcon />}
-            sx={{ mr: 2 }}
-          >
-            Saved Scripts
-          </Button>
-          
-          <IconButton onClick={handleOpenUserMenu} sx={{ ml: 1 }}>
-            <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
-              {userData?.name?.charAt(0) || 'U'}
-            </Avatar>
-          </IconButton>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Button 
+              component={Link}
+              href="/dashboard/ai-tools/saved-scripts"
+              startIcon={<SaveIcon />}
+              variant="outlined"
+              size="small"
+              sx={{ 
+                borderRadius: '20px',
+                textTransform: 'none',
+                mr: 1,
+                display: { xs: 'none', sm: 'flex' }
+              }}
+            >
+              Saved Scripts
+            </Button>
+            
+            <IconButton 
+              onClick={handleOpenUserMenu} 
+              sx={{ 
+                ml: 1,
+                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                '&:hover': {
+                  bgcolor: alpha(theme.palette.primary.main, 0.2),
+                }
+              }}
+            >
+              <Avatar 
+                sx={{ 
+                  width: 32, 
+                  height: 32, 
+                  bgcolor: 'primary.main',
+                  fontSize: '0.875rem',
+                  fontWeight: 'bold'
+                }}
+              >
+                {userData?.name?.charAt(0) || 'U'}
+              </Avatar>
+            </IconButton>
+          </Box>
           
           <Menu
             anchorEl={userMenuAnchor}
@@ -267,7 +638,20 @@ function DashboardLayoutContent({
             onClose={handleCloseUserMenu}
             transformOrigin={{ horizontal: 'right', vertical: 'top' }}
             anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+            PaperProps={{
+              elevation: 3,
+              sx: { mt: 1.5, minWidth: 180 }
+            }}
           >
+            <Box sx={{ px: 2, py: 1 }}>
+              <Typography variant="subtitle2" fontWeight={600}>
+                {userData?.name}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {userData?.email}
+              </Typography>
+            </Box>
+            <Divider />
             <MenuItem component={Link} href="/dashboard/settings" onClick={handleCloseUserMenu}>
               <ListItemIcon>
                 <PersonIcon fontSize="small" />
@@ -298,6 +682,7 @@ function DashboardLayoutContent({
             '& .MuiDrawer-paper': { 
               boxSizing: 'border-box', 
               width: drawerWidth,
+              boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
             },
           }}
         >
@@ -311,7 +696,7 @@ function DashboardLayoutContent({
             '& .MuiDrawer-paper': { 
               boxSizing: 'border-box', 
               width: drawerWidth,
-              borderRight: '1px solid rgba(0, 0, 0, 0.12)',
+              borderRight: '1px solid rgba(0, 0, 0, 0.08)',
               boxShadow: 'none'
             },
           }}
