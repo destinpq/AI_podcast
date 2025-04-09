@@ -12,7 +12,7 @@ import {
   Card,
   CardContent,
   CardActions,
-  Divider,
+  CardMedia,
   Alert,
   Checkbox,
   FormControlLabel,
@@ -25,8 +25,8 @@ import {
   DialogContent,
   DialogActions,
   Snackbar,
-  useTheme,
-  useMediaQuery
+  ListItemIcon,
+  ListItemText
 } from '@mui/material';
 import { 
   Save as SaveIcon,
@@ -43,6 +43,7 @@ interface TrendData {
   title: string;
   traffic: string;
   articles: string[];
+  imageUrl?: string;
 }
 
 interface SavedResearch {
@@ -89,51 +90,6 @@ const suggestedTopics = [
   "Work-Life Balance"
 ];
 
-// Define interface for the health topics info
-interface ResourceLink {
-  name: string;
-  url: string;
-}
-
-interface HealthTopicInfo {
-  title: string;
-  description: string;
-  resources: ResourceLink[];
-}
-
-interface HealthTopicsMap {
-  [key: string]: HealthTopicInfo;
-}
-
-// Add health topics information content with proper typing, focusing on general mental health
-const healthTopicsInfo: HealthTopicsMap = {
-  "Mental Health": {
-    title: "About Mental Health",
-    description: "Mental health encompasses emotional, psychological, and social well-being. It affects how we think, feel, act, handle stress, relate to others, and make choices.",
-    resources: [
-      { name: "National Institute of Mental Health", url: "https://www.nimh.nih.gov/health/topics/mental-health" },
-      { name: "Mental Health America", url: "https://www.mhanational.org/mental-health-basics" },
-      { name: "World Health Organization", url: "https://www.who.int/health-topics/mental-health" }
-    ]
-  },
-  "Seasonal Affective Disorder": {
-    title: "About Seasonal Affective Disorder",
-    description: "Seasonal affective disorder (SAD) is a type of depression related to seasonal changes, most commonly beginning in fall and continuing through winter months.",
-    resources: [
-      { name: "Mayo Clinic", url: "https://www.mayoclinic.org/diseases-conditions/seasonal-affective-disorder/symptoms-causes/syc-20364651" },
-      { name: "American Psychiatric Association", url: "https://www.psychiatry.org/patients-families/seasonal-affective-disorder" }
-    ]
-  },
-  "Sleep Hygiene": {
-    title: "About Sleep Hygiene",
-    description: "Sleep hygiene refers to healthy sleep habits that can improve your ability to fall asleep and stay asleep, which is vital to mental and physical health.",
-    resources: [
-      { name: "Sleep Foundation", url: "https://www.sleepfoundation.org/sleep-hygiene" },
-      { name: "CDC - Sleep and Sleep Disorders", url: "https://www.cdc.gov/sleep/about_sleep/sleep_hygiene.html" }
-    ]
-  }
-};
-
 export default function ResearchGenerator() {
   const { user } = useAuth();
   const [topic, setTopic] = useState('');
@@ -153,10 +109,6 @@ export default function ResearchGenerator() {
   const [selectedResearchId, setSelectedResearchId] = useState<string | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-
-  // Define loadSavedResearches function before using it in useEffect
   const loadSavedResearches = useCallback(async () => {
     if (!user) return;
     
@@ -211,7 +163,6 @@ export default function ResearchGenerator() {
     }
   }, [user]);
 
-  // Load saved researches on component mount
   useEffect(() => {
     if (user) {
       loadSavedResearches();
@@ -261,7 +212,8 @@ export default function ResearchGenerator() {
       const formattedTrends = trendsData.news?.map((item: NewsItem) => ({
         title: item.title || 'Untitled',
         traffic: `${Math.floor(Math.random() * 1000) + 100}`,
-        articles: [item.source || 'Unknown source']
+        articles: [item.source || 'Unknown source'],
+        imageUrl: item.url
       })) || [];
       
       // Add discussions as additional trends
@@ -269,7 +221,8 @@ export default function ResearchGenerator() {
         formattedTrends.push({
           title: item.title || 'Untitled discussion',
           traffic: item.score ? `${item.score}` : `${Math.floor(Math.random() * 1000) + 100}`,
-          articles: [`From: ${item.source || 'Community'}`]
+          articles: [`From: ${item.source || 'Community'}`],
+          imageUrl: item.url
         });
       });
       
@@ -292,7 +245,7 @@ export default function ResearchGenerator() {
     }
   };
 
-  const handleGetRecommendations = async () => {
+  const handleRecommendations = async () => {
     if (!selectedTrends || selectedTrends.length === 0) {
       setError('Please select at least one topic to analyze');
       return;
@@ -379,15 +332,10 @@ export default function ResearchGenerator() {
     }
   };
 
-  const handleTrendSelection = (trendTitle: string) => {
-    setSelectedTrends(prev => {
-      if (!prev) return [trendTitle];
-      if (prev.includes(trendTitle)) {
-        return prev.filter(t => t !== trendTitle);
-      } else {
-        return [...prev, trendTitle];
-      }
-    });
+  const handleTrendSelection = (checked: boolean, title: string) => {
+    setSelectedTrends(prev => 
+      checked ? [...prev, title] : prev.filter(t => t !== title)
+    );
   };
   
   const handleSave = async () => {
@@ -472,8 +420,8 @@ export default function ResearchGenerator() {
   };
   
   const handleDeleteClick = () => {
-    handleMenuClose();
     setConfirmDeleteOpen(true);
+    handleMenuClose();
   };
   
   const handleDeleteConfirm = async () => {
@@ -504,50 +452,66 @@ export default function ResearchGenerator() {
   // Fix the recommendations display to handle markdown formatting better for mental health content
   const formatRecommendations = (text: string) => {
     if (!text) return '';
-    
-    // Handle section headers with numbering
-    let formatted = text.replace(/#+\s+(.*?)\s*$/gm, (match, title) => {
-      // Check if title has numbers like "1." or "#"
-      if (title.match(/^\d+\.\s+/) || title.includes('#')) {
-        return `<h3 class="section-title">${title}</h3>`;
-      }
-      return `<h3>${title}</h3>`;
-    });
-    
-    // Handle bold text with ** markers
-    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    
-    // Add special styling for mental health terms
-    const mentalHealthTerms = ['Mental Health', 'Wellbeing', 'Well-being', 'Wellness', 'Self-care', 'Mindfulness'];
-    mentalHealthTerms.forEach(term => {
-      const regex = new RegExp(`<strong>(${term})</strong>`, 'gi');
-      formatted = formatted.replace(regex, '<strong class="highlight-term">$1</strong>');
-    });
-    
-    // Handle list items
-    formatted = formatted.replace(/- (.*?)$/gm, '<li>$1</li>');
-    formatted = formatted.replace(/<li>(.*?)<\/li>/g, '<ul><li>$1</li></ul>');
-    formatted = formatted.replace(/<\/ul><ul>/g, '');
-    
-    // Handle paragraphs with better spacing
-    formatted = formatted.replace(/\n\n/g, '</p><p>');
-    
-    // Handle single line breaks within paragraphs
-    formatted = formatted.replace(/\n(?!\n)/g, '<br />');
-    
-    return '<div class="recommendations-content"><p>' + formatted + '</p></div>';
-  };
 
-  // Add combined topics functionality
-  const handleCombinedResearch = (topics: string[]) => {
-    if (topics.length === 0) return;
-    
-    // Join topics with "and" for the search term
-    const combinedTopic = topics.join(" and ");
-    setTopic(combinedTopic);
-    
-    // Trigger research with slight delay to allow state update
-    setTimeout(() => handleResearch(), 100);
+    let html = text;
+
+    // **Headings**
+    html = html.replace(/^# (.*$)/gm, '<h1 class="text-2xl font-bold mt-6 mb-3 text-primary-dark">$1</h1>');
+    html = html.replace(/^## (.*$)/gm, '<h2 class="text-xl font-bold mt-5 mb-2 text-primary-dark">$1</h2>');
+    html = html.replace(/^### (.*$)/gm, '<h3 class="text-lg font-bold mt-4 mb-2 text-primary-dark">$1</h3>');
+    html = html.replace(/^#### (.*$)/gm, '<h4 class="text-base font-bold mt-3 mb-2 text-primary-dark">$1</h4>');
+
+    // **Bold and Italic**
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+    // **Blockquotes**
+    html = html.replace(/^> (.*$)/gm, '<blockquote class="border-l-4 border-blue-500 pl-4 py-2 my-4 bg-blue-50 rounded-r">$1</blockquote>');
+
+    // **Lists** (Improved handling)
+    // Convert markdown list markers to <li> tags
+    html = html.replace(/^\s*\d+\.\s+(.*)/gm, '<li>$1</li>');
+    html = html.replace(/^\s*[-\*]\s+(.*)/gm, '<li>$1</li>');
+
+    // Wrap groups of <li> tags in <ol> or <ul>
+    html = html.replace(/^(<li>.*<\/li>\s*)+/gm, (match) => {
+      // A simple heuristic: if the first item looks like it started with a number, use <ol>
+      const isOrdered = match.match(/^<li>\d+\./);
+      const tag = isOrdered ? 'ol' : 'ul';
+      const listClass = isOrdered ? 'list-decimal' : 'list-disc';
+      // Remove list markers if they were kept in the <li> content (adjust regex above if needed)
+      const content = match.replace(/<li>\d+\.\s*/g, '<li>'); 
+      return `<${tag} class="my-3 ${listClass} pl-6">${content.replace(/<\/li>\s*<li>/g, '</li><li>')}</${tag}>\n`;
+    });
+
+    // **Paragraphs** (Split by double newline, then wrap non-tag lines)
+    html = html.split('\n\n').map(paragraph => {
+      paragraph = paragraph.trim();
+      if (!paragraph) return '';
+      // Check if it's already a list, heading, or blockquote
+      if (paragraph.match(/^<[houlb]|<\/?[houlb]/)) {
+        return paragraph; // Keep existing HTML
+      }
+      // Wrap remaining lines in <p> tags
+      return `<p class="my-3">${paragraph.replace(/\n/g, '<br>')}</p>`;
+    }).join('');
+
+    // **Citations and Links**
+    html = html.replace(/\((.*?,?\s*\d{4}.*?)\)/g, '<span class="text-gray-600">($1)</span>');
+    html = html.replace(/\[(\d+)\]/g, '<sup class="bg-blue-100 px-1 rounded text-blue-800">[$1]</sup>');
+    html = html.replace(/(https?:\/\/[^\s<>"']+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline break-all">$1</a>');
+    html = html.replace(/DOI: (10\.\d{4,}\/[^\s<>"']+)/g, 'DOI: <a href="https://doi.org/$1" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">$1</a>');
+
+    // **Special Formatting**
+    html = html.replace(/Example(\s\d+)?:/g, '<div class="bg-gray-50 p-3 rounded-lg my-4 border-l-4 border-green-500"><span class="font-bold text-green-700">Example$1:</span>');
+    html = html.replace(/Citation:/g, '<div class="text-sm text-gray-600 mt-2 border-t border-gray-200 pt-2"><span class="font-semibold">Citation:</span>');
+    html = html.replace(/([A-Za-z]+, [A-Z]\. ?(?:[A-Z]\. ?)*\(\d{4}\)\..*?\.)/g, '<span class="block text-sm bg-gray-100 px-2 py-1 rounded font-mono my-1">$1</span>');
+
+    // Clean up extra breaks potentially added by paragraph logic
+    html = html.replace(/<p class=\"my-3\"><br><\/p>/g, '');
+    html = html.replace(/<br>\s*<br>/g, '<br>'); 
+
+    return html;
   };
 
   console.log('Current component state:', { 
@@ -560,512 +524,399 @@ export default function ResearchGenerator() {
   });
 
   return (
-    <Box sx={{ flexGrow: 1 }}>
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        mb: 4,
-        flexDirection: isMobile ? 'column' : 'row',
-        gap: 2
-      }}>
-        <Typography variant="h4" component="h1" sx={{ 
-          fontWeight: 'bold',
-          color: theme.palette.primary.main,
-          position: 'relative',
-          '&:after': {
-            content: '""',
-            position: 'absolute',
-            bottom: -8,
-            left: 0,
-            width: '60px',
-            height: '4px',
-            backgroundColor: theme.palette.primary.main,
-            borderRadius: '2px'
-          }
-        }}>
-          Wellness Research Generator
+    <Box sx={{ maxWidth: 'lg', mx: 'auto', py: 4 }}>
+      <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 700, mb: 4 }}>
+        Research Generator
+      </Typography>
+
+      {/* Main Research Input Section */}
+      <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, mb: 4, borderRadius: 2, border: '1px solid #e0e0e0' }}>
+        <Typography variant="body1" color="text.secondary" paragraph>
+          Generate comprehensive research materials with detailed examples and proper citations. Enter a topic below or try one of these examples:
         </Typography>
+        
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 3 }}>
+          {["Waqf Boards in India", "Digital Mental Health Interventions", "Climate Adaptation Strategies", "Sustainable Finance Trends", "AI Ethics in Healthcare"].map((exampleTopic) => (
+            <Chip
+              key={exampleTopic}
+              label={exampleTopic}
+              onClick={() => setTopic(exampleTopic)}
+              color="primary"
+              variant="outlined"
+              clickable
+              sx={{ 
+                borderRadius: '16px',
+                '&:hover': {
+                  backgroundColor: 'rgba(25, 118, 210, 0.08)'
+                }
+              }}
+            />
+          ))}
+        </Box>
+        
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={9}>
+            <TextField
+              fullWidth
+              label="Research Topic"
+              variant="outlined"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder="Enter a specific topic, e.g., 'Mental Health in Remote Workplaces'"
+              disabled={loading}
+              helperText="Specific topics yield better research."
+              sx={{ 
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '8px'
+                }
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <Button
+              fullWidth
+              variant="contained"
+              color="primary"
+              onClick={handleResearch}
+              disabled={loading || !topic}
+              startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <AutoAwesomeIcon />}
+              sx={{ 
+                height: 56,
+                borderRadius: '8px',
+                textTransform: 'none',
+                fontWeight: 600,
+                fontSize: '1rem'
+              }}
+            >
+              {loading ? 'Generating...' : 'Generate Research'}
+            </Button>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      {/* Suggested Topics Section */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+          Suggested Topics
+        </Typography>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          {suggestedTopics.map((suggestedTopic) => (
+            <Chip
+              key={suggestedTopic}
+              label={suggestedTopic}
+              onClick={() => setTopic(suggestedTopic)}
+              variant="outlined"
+              clickable
+              sx={{ 
+                borderRadius: '16px',
+                borderColor: '#bdbdbd',
+                color: '#616161',
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                }
+              }}
+            />
+          ))}
+        </Box>
       </Box>
       
-      <Grid container spacing={3}>
-        <Grid item xs={12}>
-          <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 3, mb: 4 }}>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              handleResearch();
-            }}>
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} md={8}>
-                  <TextField
-                    fullWidth
-                    label="Research Topic"
-                    placeholder="Enter a topic to research..."
-                    value={topic}
-                    onChange={(e) => setTopic(e.target.value)}
-                    disabled={loading}
-                    variant="outlined"
-                    error={!!error && !topic}
-                    helperText={!topic && error ? "Topic is required" : ""}
-                    InputProps={{
-                      onKeyDown: (e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleResearch();
-                        }
-                      }
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <Button
-                    fullWidth
-                    type="submit"
-                    variant="contained"
-                    color="primary"
-                    onClick={handleResearch}
-                    disabled={loading || !topic}
-                    startIcon={loading ? <CircularProgress size={20} /> : <AutoAwesomeIcon />}
-                    sx={{ py: 1.5, borderRadius: 2 }}
-                  >
-                    {loading ? 'Searching...' : 'Generate Research'}
-                  </Button>
-                </Grid>
-                <Grid item xs={12}>
-                  <Box sx={{ mt: 2 }}>
-                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                      Suggested Topics:
-                    </Typography>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                      {suggestedTopics.map((suggestedTopic) => (
-                        <Chip
-                          key={suggestedTopic}
-                          label={suggestedTopic}
-                          onClick={() => {
-                            setTopic(suggestedTopic);
-                            // Optional: auto-search when a suggested topic is clicked
-                            // setTimeout(() => handleResearch(), 100);
-                          }}
-                          color={topic === suggestedTopic ? "primary" : "default"}
-                          variant={topic === suggestedTopic ? "filled" : "outlined"}
-                          sx={{ 
-                            cursor: 'pointer',
-                            '&:hover': {
-                              bgcolor: 'rgba(25, 118, 210, 0.08)'
-                            }
-                          }}
-                        />
-                      ))}
-                    </Box>
-                  </Box>
-                </Grid>
-              </Grid>
-            </form>
-          </Paper>
-        </Grid>
-
-        {error && (
-          <Grid item xs={12}>
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          </Grid>
-        )}
-
-        {/* Debug section to show when no trends are found but no error is shown */}
-        {!error && trends.length === 0 && !loading && topic && (
-          <Grid item xs={12}>
-            <Alert severity="info" sx={{ mb: 2 }}>
-              Enter a topic and click &quot;Generate Research&quot; to explore trending topics.
-            </Alert>
-          </Grid>
-        )}
-
-        {trends && trends.length > 0 && (
-          <Grid item xs={12}>
-            <Paper sx={{ p: 3, mb: 4, borderRadius: 2 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-                  Key Findings for &quot;{topic}&quot;
-                </Typography>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={handleGetRecommendations}
-                  disabled={loading || !selectedTrends || selectedTrends.length === 0}
-                  startIcon={loading ? <CircularProgress size={20} /> : <AutoAwesomeIcon />}
-                  sx={{ borderRadius: 2 }}
-                >
-                  {loading ? 'Analyzing...' : 'Analyze Selected Topics'}
-                </Button>
-              </Box>
-              {selectedTrends && selectedTrends.length > 0 && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle1" sx={{ mb: 1 }}>
-                    Selected Topics: {selectedTrends.length}
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    {selectedTrends.map((title) => (
-                      <Chip 
-                        key={title}
-                        label={title}
-                        color="primary" 
-                        onDelete={() => handleTrendSelection(title)}
-                      />
-                    ))}
-                  </Box>
-                </Box>
-              )}
-              <Grid container spacing={2}>
-                {trends.map((trend, index) => (
-                  <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
-                    <Card sx={{ 
-                      height: '100%', 
-                      display: 'flex', 
-                      flexDirection: 'column',
-                      transition: 'all 0.3s ease',
-                      borderRadius: 2,
-                      overflow: 'hidden',
-                      '&:hover': { 
-                        boxShadow: 6,
-                        transform: 'translateY(-5px)'
-                      }
-                    }}>
-                      <CardContent sx={{ p: 2, flexGrow: 1 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                            {trend.title}
-                          </Typography>
-                          <Chip 
-                            label={`Traffic: ${trend.traffic}`} 
-                            size="small" 
-                            color="primary" 
-                            variant="outlined"
-                          />
-                        </Box>
-                        <Divider sx={{ my: 1.5 }} />
-                        <FormControlLabel
-                          control={
-                            <Checkbox
-                              checked={selectedTrends?.includes(trend.title) || false}
-                              onChange={() => handleTrendSelection(trend.title)}
-                              color="primary"
-                            />
-                          }
-                          label="Select for analysis"
-                        />
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 1 }}>
-                          Related Articles:
-                        </Typography>
-                        <Box sx={{ 
-                          maxHeight: '120px', 
-                          overflowY: 'auto',
-                          pl: 1,
-                          pr: 1,
-                          borderRadius: 1,
-                          bgcolor: 'background.paper'
-                        }}>
-                          {trend.articles && trend.articles.length > 0 ? (
-                            trend.articles.map((article, articleIndex) => (
-                              <Typography
-                                key={articleIndex}
-                                variant="body2"
-                                sx={{
-                                  py: 0.75,
-                                  borderBottom: (trend.articles && articleIndex === trend.articles.length - 1) ? 0 : '1px solid',
-                                  borderColor: 'divider'
-                                }}
-                              >
-                                {article}
-                              </Typography>
-                            ))
-                          ) : (
-                            <Typography variant="body2" color="text.secondary">
-                              No articles available
-                            </Typography>
-                          )}
-                        </Box>
-                      </CardContent>
-                      <CardActions sx={{ p: 1, justifyContent: 'center', borderTop: '1px solid', borderColor: 'divider' }}>
-                        <Button 
-                          size="small" 
-                          variant={selectedTrends?.includes(trend.title) ? "contained" : "outlined"}
-                          color="primary"
-                          onClick={() => handleTrendSelection(trend.title)}
-                        >
-                          {selectedTrends?.includes(trend.title) ? "Selected" : "Select"}
-                        </Button>
-                      </CardActions>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            </Paper>
-          </Grid>
-        )}
-
-        {recommendations && (
-          <Grid item xs={12}>
-            <Paper id="recommendations-section" sx={{ 
-              p: 3, 
-              mb: 4, 
-              borderRadius: 2,
-              boxShadow: 3
-            }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-                  AI Recommendations
-                </Typography>
-                <Button
+      {/* Error Alert */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+      
+      {/* Loading indicator for trends/recommendations */}
+      {loading && !recommendations && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+          <CircularProgress />
+          <Typography sx={{ ml: 2 }}>Fetching trends and generating recommendations...</Typography>
+        </Box>
+      )}
+      
+      {/* Trends Section with Image Cards */}
+      {trends.length > 0 && !recommendations && (
+        <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, mb: 4, borderRadius: 2, border: '1px solid #e0e0e0' }}>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
+            Trending Topics Found
+          </Typography>
+          
+          <Grid container spacing={2}>
+            {trends.map((trend, index) => (
+              <Grid item xs={12} sm={6} md={4} key={index}>
+                <Card 
                   variant="outlined"
-                  color="primary"
-                  startIcon={<SaveIcon />}
-                  onClick={handleSave}
-                  disabled={!user}
-                  sx={{ borderRadius: 2 }}
+                  sx={{ 
+                    height: '100%', 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    borderRadius: 1.5,
+                    bgcolor: selectedTrends.includes(trend.title) ? 'action.selected' : 'transparent',
+                    border: selectedTrends.includes(trend.title) ? '1px solid' : '1px solid rgba(0, 0, 0, 0.12)',
+                    borderColor: selectedTrends.includes(trend.title) ? 'primary.main' : 'rgba(0, 0, 0, 0.12)',
+                    transition: 'all 0.2s ease-in-out',
+                    '&:hover': {
+                      boxShadow: 3,
+                      borderColor: selectedTrends.includes(trend.title) ? 'primary.dark' : 'rgba(0, 0, 0, 0.2)',
+                    }
+                  }}
                 >
-                  Save Research
-                </Button>
-              </Box>
-              <Divider sx={{ mb: 2 }} />
-              <Box sx={{ 
-                '.recommendations-content': {
-                  '& h3': {
-                    fontSize: '1.3rem',
-                    fontWeight: 600,
-                    mt: 3,
-                    mb: 2,
-                    color: theme.palette.primary.main,
-                  },
-                  '& .section-title': {
-                    fontSize: '1.5rem',
-                    fontWeight: 700,
-                    mt: 4,
-                    mb: 2,
-                    borderBottom: `1px solid ${theme.palette.divider}`,
-                    pb: 1,
-                  },
-                  '& strong': {
-                    fontWeight: 600,
-                    color: theme.palette.text.primary,
-                  },
-                  '& .highlight-term': {
-                    color: theme.palette.primary.main,
-                    fontWeight: 700,
-                    background: 'rgba(25, 118, 210, 0.08)',
-                    padding: '2px 4px',
-                    borderRadius: '4px',
-                  },
-                  '& ul': {
+                  {trend.imageUrl && (
+                    <CardMedia
+                      component="img"
+                      height="140"
+                      image={trend.imageUrl}
+                      alt={trend.title}
+                      sx={{ objectFit: 'cover' }}
+                      onError={(e) => { 
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                      }}
+                    />
+                  )}
+                  <CardContent sx={{ flexGrow: 1, pt: trend.imageUrl ? 1.5 : 2 }}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox 
+                          checked={selectedTrends.includes(trend.title)}
+                          onChange={(e) => handleTrendSelection(e.target.checked, trend.title)}
+                          sx={{ p: 0.5, mr: 0.5 }}
+                        />
+                      }
+                      label={
+                        <Typography variant="body1" sx={{ fontWeight: 500, lineHeight: 1.3 }}>
+                          {trend.title}
+                        </Typography>
+                      }
+                      sx={{ width: '100%', alignItems: 'flex-start', mb: 1 }}
+                    />
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'right' }}>
+                      (Traffic: {trend.traffic})
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+          
+          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
+            <Button 
+              variant="contained" 
+              onClick={handleRecommendations} 
+              disabled={loading || selectedTrends.length === 0}
+              size="large"
+              startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <AutoAwesomeIcon />}
+              sx={{ 
+                borderRadius: '8px',
+                textTransform: 'none',
+                fontWeight: 600,
+                fontSize: '1rem',
+                px: 4
+              }}
+            >
+              {loading ? 'Generating Recommendations...' : `Analyze ${selectedTrends.length} Selected Topic(s)`}
+            </Button>
+          </Box>
+        </Paper>
+      )}
+      
+      {/* Recommendations Section */}
+      {recommendations && (
+        <Card sx={{ mt: 3, overflow: 'visible', borderRadius: 2, border: '1px solid #e0e0e0' }}>
+          <CardContent sx={{ p: 0 }}>
+            <Box sx={{ p: 3, borderBottom: '1px solid rgba(0, 0, 0, 0.12)' }}>
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+                Research Recommendations
+              </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Based on the selected trends, here are detailed recommendations for your research on <strong>{topic}</strong>.
+              </Typography>
+            </Box>
+            
+            <Box sx={{ p: 3 }}>
+              <Paper 
+                elevation={0} 
+                sx={{ 
+                  p: 3, 
+                  bgcolor: '#f9f9f9', 
+                  borderRadius: '8px',
+                  maxHeight: '600px',
+                  overflow: 'auto',
+                  '& blockquote': {
+                    borderLeft: '4px solid #3f51b5',
                     pl: 2,
-                    mb: 2,
+                    py: 1,
+                    my: 2,
+                    bgcolor: 'rgba(63, 81, 181, 0.08)',
+                    borderRadius: '0 4px 4px 0'
+                  },
+                  '& a': {
+                    color: 'primary.main',
+                    textDecoration: 'none',
+                    '&:hover': {
+                      textDecoration: 'underline'
+                    }
+                  },
+                  '& sup': {
+                    backgroundColor: 'rgba(63, 81, 181, 0.1)',
+                    padding: '0 4px',
+                    borderRadius: '4px',
+                    color: 'primary.main',
+                    fontSize: '0.7rem'
+                  },
+                  '& .citation': {
+                    fontSize: '0.85rem',
+                    color: 'text.secondary',
+                    fontFamily: 'monospace',
+                    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                    padding: '4px 6px',
+                    borderRadius: '4px',
+                    display: 'inline-block',
+                    margin: '4px 0'
+                  },
+                  '& h1, & h2, & h3, & h4': {
+                    fontWeight: 'bold',
+                    mt: 3,
+                    mb: 1,
+                    color: 'primary.dark'
+                  },
+                  '& h1': { fontSize: '1.5rem' },
+                  '& h2': { fontSize: '1.3rem' },
+                  '& h3': { fontSize: '1.15rem' },
+                  '& h4': { fontSize: '1rem' },
+                  '& ul, & ol': {
+                    pl: 3,
+                    mt: 1,
+                    mb: 2
                   },
                   '& li': {
-                    mb: 1,
-                    pl: 1,
-                  },
-                  '& p': {
-                    mb: 2,
-                    lineHeight: 1.6,
+                    mb: 1
                   }
-                }
-              }}>
-                <Typography
-                  component="div"
-                  sx={{ 
-                    whiteSpace: 'pre-line',
-                    lineHeight: 1.6,
-                  }}
-                  dangerouslySetInnerHTML={{ __html: formatRecommendations(recommendations) }}
-                />
-              </Box>
-            </Paper>
-          </Grid>
-        )}
-
-        {/* Add health context info card to recommendations section */}
-        {recommendations && topic && healthTopicsInfo[topic] && (
-          <Grid item xs={12}>
-            <Paper sx={{ 
-              p: 3, 
-              mb: 4, 
-              borderRadius: 2,
-              bgcolor: 'rgba(25, 118, 210, 0.05)',
-              border: '1px solid',
-              borderColor: 'primary.light',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-            }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <Box sx={{ 
-                  width: '8px', 
-                  height: '24px', 
-                  backgroundColor: theme.palette.primary.main,
-                  borderRadius: '4px',
-                  mr: 2
-                }} />
-                <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                  {healthTopicsInfo[topic].title}
-                </Typography>
-              </Box>
-              <Typography variant="body2" sx={{ 
-                mb: 2, 
-                pl: 3, 
-                borderLeft: `1px solid ${theme.palette.divider}`,
-                paddingY: 1
-              }}>
-                {healthTopicsInfo[topic].description}
-              </Typography>
-              {healthTopicsInfo[topic].resources && (
-                <>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                    Additional Resources:
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    {healthTopicsInfo[topic].resources.map((resource: ResourceLink, index: number) => (
-                      <Chip
-                        key={index}
-                        label={resource.name}
-                        component="a"
-                        href={resource.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        clickable
-                        color="primary"
-                        variant="outlined"
-                        size="small"
-                        sx={{ 
-                          mb: 1, 
-                          transition: 'all 0.2s ease',
-                          '&:hover': {
-                            backgroundColor: 'rgba(25, 118, 210, 0.1)',
-                            transform: 'translateY(-2px)'
-                          }
-                        }}
-                      />
-                    ))}
-                  </Box>
-                </>
-              )}
-            </Paper>
-          </Grid>
-        )}
-
-        <Grid item xs={12}>
-          <Paper sx={{ p: 3, mb: 4, borderRadius: 2 }}>
-            <Typography variant="h5" sx={{ fontWeight: 'bold', mb: 2 }}>
-              Saved Research
-            </Typography>
-            
-            {loadingSaved ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
-                <CircularProgress />
-              </Box>
-            ) : savedResearches && savedResearches.length > 0 ? (
-              <Grid container spacing={2}>
-                {savedResearches && savedResearches.map((research) => (
-                  <Grid item xs={12} sm={6} md={4} lg={3} key={research.id}>
-                    <Card sx={{ 
-                      height: '100%', 
-                      display: 'flex', 
-                      flexDirection: 'column',
-                      cursor: 'pointer',
-                      borderRadius: 2,
-                      transition: 'all 0.2s ease',
-                      '&:hover': { 
-                        boxShadow: 6,
-                        transform: 'translateY(-3px)'
-                      }
-                    }}
-                    onClick={() => handleLoadResearch(research)}
-                    >
-                      <CardContent sx={{ flexGrow: 1 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <Typography variant="subtitle1" sx={{ fontWeight: 'bold', flexGrow: 1 }}>
-                            {research.topic}
-                          </Typography>
-                          <IconButton 
-                            size="small" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMenuClick(e, research.id);
-                            }}
-                          >
-                            <MoreVertIcon fontSize="small" />
-                          </IconButton>
-                        </Box>
-                        <Box sx={{ mt: 1 }}>
-                          <Chip 
-                            size="small" 
-                            label={`${research.selectedTrends?.length || 0} Topics`} 
-                            color="primary" 
-                            variant="outlined"
-                          />
-                        </Box>
-                      </CardContent>
-                      <CardActions sx={{ p: 1, justifyContent: 'center', borderTop: '1px solid', borderColor: 'divider' }}>
-                        <Button 
-                          color="primary" 
-                          size="small"
-                          startIcon={<FolderIcon fontSize="small" />}
-                        >
-                          Load Research
-                        </Button>
-                      </CardActions>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            ) : (
-              <Typography color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
-                {user ? 'No saved research yet' : 'Please login to save and view research'}
-              </Typography>
-            )}
-          </Paper>
-        </Grid>
-
-        {/* Add UI for combined topics */}
-        <Grid item xs={12}>
-          <Box sx={{ mt: 3, mb: 2 }}>
-            <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold' }}>
-              Research Topics Combinations
-            </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              <Button 
-                variant="outlined" 
-                size="small"
-                onClick={() => handleCombinedResearch(['Mental Health', 'Seasonal Changes'])}
-                startIcon={<AutoAwesomeIcon />}
-                sx={{ mb: 1, borderRadius: 2 }}
+                }}
               >
-                Mental Health & Seasonal Changes
-              </Button>
-              <Button 
-                variant="outlined" 
-                size="small"
-                onClick={() => handleCombinedResearch(['Sleep Hygiene', 'Mental Health'])}
-                startIcon={<AutoAwesomeIcon />}
-                sx={{ mb: 1, borderRadius: 2 }}
-              >
-                Sleep Hygiene & Mental Health
-              </Button>
-              <Button 
-                variant="outlined" 
-                size="small"
-                onClick={() => handleCombinedResearch(['Stress Management', 'Work-Life Balance'])}
-                startIcon={<AutoAwesomeIcon />}
-                sx={{ mb: 1, borderRadius: 2 }}
-              >
-                Stress Management & Work-Life Balance
-              </Button>
+                <div dangerouslySetInnerHTML={{ __html: formatRecommendations(recommendations) }} />
+              </Paper>
             </Box>
-            <Typography variant="caption" color="text.secondary">
-              Click on a combination to research related topics together
-            </Typography>
-          </Box>
-        </Grid>
-      </Grid>
+          </CardContent>
+          
+          <CardActions sx={{ p: 2, pt: 0, justifyContent: 'flex-end' }}>
+            <Button 
+              startIcon={<SaveIcon />} 
+              variant="contained"
+              color="primary"
+              onClick={handleSave}
+              disabled={saveLoading}
+              sx={{ borderRadius: '8px' }}
+            >
+              {saveLoading ? 'Saving...' : 'Save Research'}
+            </Button>
+          </CardActions>
+        </Card>
+      )}
       
-      {/* Save Dialog */}
+      {/* Saved Research Section */}
+      <Box sx={{ mt: 5 }}>
+        <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
+          Saved Research
+        </Typography>
+        {loadingSaved && <CircularProgress />}
+        {!loadingSaved && savedResearches.length === 0 && (
+          <Alert severity="info" variant="outlined" sx={{ borderColor: '#b3e5fc', bgcolor: '#e1f5fe' }}>
+            You haven&apos;t saved any research yet. Generate and save research to find it here.
+          </Alert>
+        )}
+        {!loadingSaved && savedResearches.length > 0 && (
+          <Grid container spacing={3}>
+            {savedResearches.map((research) => (
+              <Grid item xs={12} sm={6} md={4} key={research.id}>
+                <Card 
+                  variant="outlined" 
+                  sx={{ 
+                    height: '100%', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    borderRadius: 2,
+                    transition: 'box-shadow 0.3s',
+                    '&:hover': { boxShadow: 3 }
+                  }}
+                >
+                  <CardContent sx={{ flexGrow: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <Typography variant="h6" component="div" sx={{ fontWeight: 600, mb: 1 }}>
+                        {research.topic}
+                      </Typography>
+                      <IconButton 
+                        size="small" 
+                        onClick={(e) => handleMenuClick(e, research.id)}
+                        sx={{ mt: -1, mr: -1 }}
+                      >
+                        <MoreVertIcon />
+                      </IconButton>
+                    </Box>
+                    <Chip 
+                      label={`${research.selectedTrends?.length || 0} Topics`}
+                      size="small"
+                      color="secondary"
+                      variant="outlined"
+                      sx={{ mb: 2 }}
+                    />
+                    <Typography variant="body2" color="text.secondary">
+                      Last updated: {research.updatedAt ? research.updatedAt.toDate().toLocaleDateString() : 'N/A'}
+                    </Typography>
+                  </CardContent>
+                  <CardActions sx={{ justifyContent: 'flex-end' }}>
+                    <Button 
+                      size="small" 
+                      startIcon={<FolderIcon />}
+                      onClick={() => handleLoadResearch(research)}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      Load Research
+                    </Button>
+                  </CardActions>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        )}
+      </Box>
+      
+      {/* Menu for Saved Research Actions */}
+      <Menu
+        anchorEl={menuAnchorEl}
+        open={Boolean(menuAnchorEl)}
+        onClose={handleMenuClose}
+      >
+        <MenuItem onClick={handleDeleteClick}>
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Delete</ListItemText>
+        </MenuItem>
+      </Menu>
+
+      {/* Confirmation Dialog for Delete */}
+      <Dialog open={confirmDeleteOpen} onClose={() => setConfirmDeleteOpen(false)}>
+        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to delete this saved research? This action cannot be undone.</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDeleteOpen(false)}>Cancel</Button>
+          <Button onClick={handleDeleteConfirm} color="error">Delete</Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Snackbar for feedback */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        message={snackbarMessage}
+      />
+      
+      {/* Save Dialog (if needed) */}
       <Dialog 
         open={openSaveDialog} 
         onClose={handleSaveCancel}
@@ -1104,98 +955,6 @@ export default function ResearchGenerator() {
           </Button>
         </DialogActions>
       </Dialog>
-      
-      {/* Research Options Menu */}
-      <Menu
-        anchorEl={menuAnchorEl}
-        open={Boolean(menuAnchorEl)}
-        onClose={handleMenuClose}
-        PaperProps={{
-          sx: { borderRadius: 1 }
-        }}
-      >
-        <MenuItem onClick={() => {
-          const research = savedResearches.find(r => r.id === selectedResearchId);
-          if (research) handleLoadResearch(research);
-        }}>
-          <FolderIcon fontSize="small" sx={{ mr: 1 }} />
-          Load
-        </MenuItem>
-        <MenuItem onClick={handleDeleteClick}>
-          <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
-          Delete
-        </MenuItem>
-      </Menu>
-      
-      {/* Confirm Delete Dialog */}
-      <Dialog 
-        open={confirmDeleteOpen} 
-        onClose={() => setConfirmDeleteOpen(false)}
-        PaperProps={{
-          sx: { borderRadius: 2 }
-        }}
-      >
-        <DialogTitle>Confirm Delete</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to delete this research? This action cannot be undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ p: 2, pt: 0 }}>
-          <Button 
-            onClick={() => setConfirmDeleteOpen(false)}
-            sx={{ borderRadius: 1.5 }}
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleDeleteConfirm} 
-            color="error" 
-            variant="contained"
-            sx={{ borderRadius: 1.5 }}
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-      
-      {/* Snackbar for notifications */}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        message={snackbarMessage}
-      />
-
-      {/* Add a retry button when there's an error */}
-      {error && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-          <Button
-            variant="outlined"
-            color="error"
-            onClick={() => {
-              setError(null);
-              if (topic) handleResearch();
-            }}
-            sx={{ borderRadius: 2, mx: 1 }}
-          >
-            Retry Search
-          </Button>
-          <Button 
-            variant="outlined"
-            onClick={() => {
-              setTopic('');
-              setTrends([]);
-              setSelectedTrends([]);
-              setRecommendations('');
-              setError(null);
-            }}
-            sx={{ borderRadius: 2, mx: 1 }}
-          >
-            Start Over
-          </Button>
-        </Box>
-      )}
     </Box>
   );
 } 

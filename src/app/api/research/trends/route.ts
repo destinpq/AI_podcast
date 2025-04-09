@@ -7,6 +7,7 @@ interface TrendingContent {
   url: string;
   score?: number;
   publishedAt?: string;
+  imageUrl?: string;
 }
 
 interface TrendsData {
@@ -25,6 +26,7 @@ interface NewsAPIArticle {
   publishedAt: string;
   description?: string;
   content?: string;
+  urlToImage?: string;
 }
 
 interface NewsAPIResponse {
@@ -69,32 +71,36 @@ export async function POST(request: Request) {
 
     // If NewsAPI key is not available, use mock data
     if (!NEWS_API_KEY) {
-      console.warn('NEWS_API_KEY is not defined in environment variables, using mock data');
+      console.warn('NEWS_API_KEY is not defined, using mock data with placeholder images');
       
       const mockNewsData: TrendingContent[] = [
         {
           title: `Latest developments in ${topic}`,
           source: 'Tech News',
           url: 'https://example.com/tech-news',
-          publishedAt: new Date().toISOString()
+          publishedAt: new Date().toISOString(),
+          imageUrl: '/placeholder-tech.jpg'
         },
         {
           title: `Why ${topic} is trending today`,
           source: 'Industry Weekly',
           url: 'https://example.com/industry-weekly',
-          publishedAt: new Date().toISOString()
+          publishedAt: new Date().toISOString(),
+          imageUrl: '/placeholder-industry.jpg'
         },
         {
           title: `${topic}: A comprehensive guide`,
           source: 'Digital Trends',
           url: 'https://example.com/digital-trends',
-          publishedAt: new Date().toISOString()
+          publishedAt: new Date().toISOString(),
+          imageUrl: '/placeholder-digital.jpg'
         },
         {
           title: `How ${topic} is revolutionizing the industry`,
           source: 'Innovation Today',
           url: 'https://example.com/innovation-today',
-          publishedAt: new Date().toISOString()
+          publishedAt: new Date().toISOString(),
+          imageUrl: '/placeholder-innovation.jpg'
         }
       ];
 
@@ -105,6 +111,7 @@ export async function POST(request: Request) {
           source: 'Community Forums',
           url: `https://example.com/discussions/${index}`,
           score: Math.floor(Math.random() * 1000) + 100,
+          imageUrl: '/placeholder-community.jpg'
         })),
         relatedQueries,
       };
@@ -141,12 +148,14 @@ export async function POST(request: Request) {
         source: article.source.name,
         url: article.url,
         publishedAt: article.publishedAt,
+        imageUrl: article.urlToImage || undefined
       })),
       discussions: discussionTopics.map((title, index) => ({
         title,
         source: 'Community Forums',
         url: `https://example.com/discussions/${index}`,
-        score: Math.floor(Math.random() * 1000) + 100, // Random score for demonstration
+        score: Math.floor(Math.random() * 1000) + 100,
+        imageUrl: '/placeholder-discussion.png'
       })),
       relatedQueries,
     };
@@ -162,6 +171,7 @@ export async function POST(request: Request) {
             source: article.source.name,
             url: article.url,
             publishedAt: article.publishedAt,
+            imageUrl: article.urlToImage || undefined
           });
         }
       });
@@ -180,13 +190,15 @@ export async function POST(request: Request) {
           title: `Latest developments in ${topic}`,
           source: 'Tech News',
           url: 'https://example.com/tech-news',
-          publishedAt: new Date().toISOString()
+          publishedAt: new Date().toISOString(),
+          imageUrl: '/placeholder-error1.jpg'
         },
         {
           title: `Why ${topic} is trending today`,
           source: 'Industry Weekly',
           url: 'https://example.com/industry-weekly',
-          publishedAt: new Date().toISOString()
+          publishedAt: new Date().toISOString(),
+          imageUrl: '/placeholder-error2.jpg'
         }
       ],
       discussions: [
@@ -194,13 +206,15 @@ export async function POST(request: Request) {
           title: `Impact of ${topic} on industry`,
           source: 'Community Forums',
           url: 'https://example.com/discussions/1',
-          score: 890
+          score: 890,
+          imageUrl: '/placeholder-error-disc.jpg'
         },
         {
           title: `The future of ${topic}`,
           source: 'Community Forums',
           url: 'https://example.com/discussions/2',
-          score: 745
+          score: 745,
+          imageUrl: '/placeholder-error-disc2.jpg'
         }
       ],
       relatedQueries: [

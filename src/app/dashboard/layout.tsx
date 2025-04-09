@@ -1,5 +1,7 @@
 'use client';
 
+// Import the dynamic function from next/dynamic
+import dynamic from 'next/dynamic';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
@@ -64,31 +66,6 @@ interface UserData {
   avatar: string | null;
 }
 
-// This wrapper ensures the dashboard only renders on the client
-const ClientOnlyDashboard = ({ children }: { children: React.ReactNode }) => {
-  const [isMounted, setIsMounted] = useState(false);
-  
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-  
-  if (!isMounted) {
-    return (
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        minHeight: '100vh',
-        backgroundColor: '#f5f7fa' 
-      }}>
-        <CircularProgress size={50} thickness={4} />
-      </Box>
-    );
-  }
-  
-  return <>{children}</>;
-};
-
 // Main component that will only render on client
 function DashboardLayoutContent({
   children,
@@ -105,6 +82,7 @@ function DashboardLayoutContent({
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
+    // Only run auth checking code on the client
     const checkAuth = async () => {
       if (authLoading) return;
       
@@ -149,6 +127,7 @@ function DashboardLayoutContent({
     }
   };
 
+  // Important: Use consistent loading UI to avoid hydration mismatches
   if (isLoading || authLoading) {
     return (
       <Box sx={{ 
@@ -158,7 +137,8 @@ function DashboardLayoutContent({
         minHeight: '100vh',
         backgroundColor: '#f5f7fa' 
       }}>
-        <CircularProgress size={50} thickness={4} />
+        {/* Only render the spinner after component has mounted */}
+        {typeof window !== 'undefined' && <CircularProgress size={50} thickness={4} />}
       </Box>
     );
   }
@@ -721,17 +701,17 @@ function DashboardLayoutContent({
   );
 }
 
-// Export a dynamic component with SSR disabled to prevent hydration issues
+// Dynamically import with SSR disabled
+const DynamicDashboardContent = dynamic(
+  () => Promise.resolve(DashboardLayoutContent),
+  { ssr: false }
+);
+
+// The layout that Next.js will use
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <ClientOnlyDashboard>
-      <DashboardLayoutContent>
-        {children}
-      </DashboardLayoutContent>
-    </ClientOnlyDashboard>
-  );
+  return <DynamicDashboardContent>{children}</DynamicDashboardContent>;
 } 
